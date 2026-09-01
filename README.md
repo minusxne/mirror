@@ -144,46 +144,89 @@ whole database.
 
 ## Moving your work between machines
 
-The board is one file, so syncing is a file copy. `tools/db-sync.mjs` wraps that
-copy with the parts you would otherwise get wrong: a consistent snapshot, a
-backup of whatever it is about to overwrite, an atomic swap on the far side, and
-a refusal to clobber newer work.
+The board is one file, so syncing is a file copy — wrapped with the parts you
+would otherwise get wrong: a consistent snapshot, a backup of whatever it is
+about to overwrite, an atomic swap on the far side, and a refusal to clobber
+newer work.
+
+### The easy way
+
+```bash
+./sync.sh
+```
+
+That is the whole thing. It opens a menu, asks what you want to do in plain
+words, and runs the right command for you — no flags to remember:
+
+```
+  ┌─────────────────────────────────────────┐
+  │   Mirror — move your study board around │
+  └─────────────────────────────────────────┘
+
+    1) Which side has the newer work?   (compare, copies nothing)
+    2) Send my boards to another machine (leaving this computer)
+    3) Fetch boards from another machine (arriving at this one)
+
+    4) Back up my boards now
+    5) Restore a backup
+    6) Machines I sync with
+    7) Where is my work kept?
+    8) Show the full command reference
+    q) Quit
+```
+
+The first time you run it there is nothing set up, so it offers to walk you
+through adding your other computer: it asks for a short name, the ssh address,
+and where you cloned this project over there — then checks the machine actually
+answers and tells you what to fix if it does not.
+
+Before anything is copied it spells out the direction and what gets replaced:
+
+```
+  Direction:  this computer  ────▶  laptop
+
+  The boards on laptop will be replaced by the ones here.
+  A dated backup is made over there first, so it is undoable.
+```
+
+It also notices when the board app is still running on the receiving machine and
+warns you before you overwrite a file that is open.
+
+Shortcuts, once the menu gets tedious:
+
+```bash
+./sync.sh status laptop   # who has the newer work?
+./sync.sh push laptop     # send this machine's boards over there
+./sync.sh pull laptop     # bring theirs back here
+./sync.sh setup           # add another computer
+./sync.sh help
+```
+
+`npm run transfer` does the same as `./sync.sh` if that is easier to remember.
+
+### The tool underneath
+
+`sync.sh` is a front end for `tools/db-sync.mjs`, which you can drive directly:
 
 ```bash
 node tools/db-sync.mjs help          # every command, with examples
 node tools/db-sync.mjs help push     # detail on one command
+
+node tools/db-sync.mjs status laptop
+node tools/db-sync.mjs push laptop
+node tools/db-sync.mjs pull laptop
 ```
 
-### First time, on each machine
+Setting a machine up by hand, if you would rather not use the wizard:
 
 ```bash
-# 1. clone and install (on both the PC and the laptop)
-git clone <your-repo> mirror && cd mirror && npm install
-
-# 2. create the local sync config
 node tools/db-sync.mjs init
-
-# 3. tell it about the *other* machine
-node tools/db-sync.mjs add laptop \
-  --host you@laptop.local \
-  --path ~/Repos/mirror
-
-# 4. check it can reach it
+node tools/db-sync.mjs add laptop --host you@laptop.local --path ~/Repos/mirror
 node tools/db-sync.mjs status laptop
 ```
 
 `sync.config.json` is gitignored and per-machine: on the PC it points at the
 laptop, on the laptop it points back at the PC.
-
-### Day to day
-
-```bash
-node tools/db-sync.mjs status laptop   # who has the newer work?
-node tools/db-sync.mjs push laptop     # send this machine's board over there
-node tools/db-sync.mjs pull laptop     # bring theirs back here
-```
-
-`status` tells you which side is ahead, so you rarely have to guess.
 
 ### What it does for you
 
@@ -255,8 +298,9 @@ src/
     geometry.js  path smoothing, simplification, hit maths
     erase.js     brush erasing — resampling and splitting strokes
   stores/board.js  application state, undo/redo, autosave
+sync.sh          guided transfer menu — the easy way to move boards
 tools/
-  db-sync.mjs    the scp sync tool  (start at `help`)
+  db-sync.mjs    the scp sync tool sync.sh drives  (start at `help`)
   db-probe.mjs   reports on a database; run on both ends by db-sync
   db-snapshot.mjs  writes a consistent copy; used before every transfer
 data/            your database  (gitignored)

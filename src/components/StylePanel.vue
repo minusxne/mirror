@@ -252,6 +252,8 @@ const setDash = (value) => apply({ dash: value }, 'dash', value)
 <style scoped>
 .style-panel {
   position: absolute;
+  /* Clear of the toolbar (46px wide at left:12) with a real gap, rather than
+     the 2px that made the two panels read as one. */
   left: 66px;
   top: 50%;
   transform: translateY(-50%);
@@ -265,7 +267,7 @@ const setDash = (value) => apply({ dash: value }, 'dash', value)
   border-radius: 12px;
   box-shadow: var(--shadow-lg);
   z-index: 19;
-  max-height: calc(100vh - 140px);
+  max-height: calc(100% - 24px);
   overflow-y: auto;
 }
 
@@ -276,6 +278,7 @@ const setDash = (value) => apply({ dash: value }, 'dash', value)
 }
 .label {
   font-size: 10px;
+  line-height: 14px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--faint);
@@ -314,11 +317,13 @@ const setDash = (value) => apply({ dash: value }, 'dash', value)
   color: var(--muted);
   border-radius: 6px;
   cursor: pointer;
-  padding: 3px 7px;
+  padding: 0 7px;
+  min-height: 24px;
   font-size: 11px;
-  line-height: 1.4;
-  display: grid;
-  place-items: center;
+  line-height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .chip:hover {
   color: var(--text);
@@ -338,7 +343,8 @@ const setDash = (value) => apply({ dash: value }, 'dash', value)
   grid-template-columns: 1fr 1fr;
 }
 .mode {
-  padding: 5px 0;
+  min-height: 28px;
+  padding: 0;
   font-size: 11.5px;
 }
 .sizes {

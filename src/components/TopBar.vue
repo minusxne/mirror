@@ -224,7 +224,10 @@ const BACKGROUNDS = [
   gap: 12px;
   padding: 0 10px 0 12px;
   background: var(--panel);
-  border-bottom: 1px solid var(--border);
+  /* An inset line rather than border-bottom: a 1px border would shrink the
+     content box to 47px, so centring would land every child on a half pixel
+     and icons and text would snap to different rows. */
+  box-shadow: inset 0 -1px 0 var(--border);
   position: relative;
   z-index: 30;
 }
@@ -242,16 +245,19 @@ const BACKGROUNDS = [
   align-items: center;
   gap: 7px;
   padding-right: 6px;
+  height: 16px;
 }
 .mark {
   width: 16px;
   height: 16px;
+  flex: none;
   border-radius: 5px;
   background: linear-gradient(135deg, var(--accent), #8e4ec6);
 }
 .wordmark {
   font-weight: 650;
   font-size: 14px;
+  line-height: 16px;
   letter-spacing: -0.01em;
 }
 
@@ -260,6 +266,7 @@ const BACKGROUNDS = [
   align-items: center;
   gap: 5px;
   font-size: 12px;
+  line-height: 16px;
   color: var(--faint);
   white-space: nowrap;
   padding-left: 2px;
@@ -274,12 +281,16 @@ const BACKGROUNDS = [
 }
 
 .board-title {
+  display: flex;
+  align-items: center;
   border: none;
   background: transparent;
   font: inherit;
   font-size: 13px;
+  line-height: 1;
   color: var(--text);
-  padding: 4px 8px;
+  height: 28px;
+  padding: 0 8px;
   border-radius: 6px;
   cursor: text;
   max-width: 260px;
@@ -293,7 +304,9 @@ const BACKGROUNDS = [
 .name-input {
   font: inherit;
   font-size: 13px;
-  padding: 3px 8px;
+  line-height: 1;
+  height: 28px;
+  padding: 0 8px;
   border: 1px solid var(--accent);
   border-radius: 6px;
   background: var(--bg);
@@ -307,6 +320,7 @@ const BACKGROUNDS = [
   align-items: center;
   gap: 5px;
   font-size: 11px;
+  line-height: 16px;
   color: var(--faint);
   padding-left: 4px;
   white-space: nowrap;
@@ -340,9 +354,9 @@ const BACKGROUNDS = [
 }
 
 .ghost {
-  display: grid;
-  place-items: center;
-  grid-auto-flow: column;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: auto;
   min-width: 30px;
   height: 30px;
@@ -367,11 +381,17 @@ const BACKGROUNDS = [
 }
 
 .zoom-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   background: transparent;
   color: var(--muted);
   font: inherit;
   font-size: 11px;
+  /* 16px rather than 1: it puts the cap-height centre of the digits on the
+     same row as the +/− icons either side. */
+  line-height: 16px;
   font-variant-numeric: tabular-nums;
   min-width: 44px;
   height: 30px;
@@ -384,7 +404,7 @@ const BACKGROUNDS = [
 }
 
 .bg-select {
-  height: 28px;
+  height: 30px;
   border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--panel);

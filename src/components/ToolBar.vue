@@ -30,14 +30,14 @@ const byId = Object.fromEntries(TOOLS.map((t) => [t.id, t]))
         :aria-pressed="tool === id"
         @click="setTool(id)"
       >
-        <Icon :name="byId[id].icon" />
+        <Icon :name="byId[id].icon" :size="19" />
         <span class="key">{{ byId[id].key.toUpperCase() }}</span>
       </button>
     </template>
 
     <div class="divider" />
     <button class="tool" title="Insert an image  (or just paste one)" aria-label="Insert image" @click="emit('pick-image')">
-      <Icon name="image" />
+      <Icon name="image" :size="19" />
     </button>
   </div>
 </template>
@@ -51,22 +51,26 @@ const byId = Object.fromEntries(TOOLS.map((t) => [t.id, t]))
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 6px;
+  padding: 5px;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: var(--shadow-lg);
   z-index: 20;
-  max-height: calc(100vh - 140px);
+  /* Relative to the stage, not the window — the stage is already shorter by the
+     top bar, and a viewport-based cap silently clipped tools off the bottom. */
+  max-height: calc(100% - 24px);
   overflow-y: auto;
 }
 
 .tool {
   position: relative;
-  width: 38px;
-  height: 38px;
-  display: grid;
-  place-items: center;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
   border: none;
   border-radius: 8px;
   background: transparent;
@@ -85,9 +89,9 @@ const byId = Object.fromEntries(TOOLS.map((t) => [t.id, t]))
 
 .key {
   position: absolute;
-  right: 3px;
-  bottom: 1px;
-  font-size: 8px;
+  right: 4px;
+  bottom: 3px;
+  font-size: 9px;
   line-height: 1;
   color: var(--faint);
   font-weight: 600;
@@ -101,6 +105,7 @@ const byId = Object.fromEntries(TOOLS.map((t) => [t.id, t]))
 .divider {
   height: 1px;
   background: var(--border);
-  margin: 4px 6px;
+  margin: 3px 6px;
+  flex: none;
 }
 </style>
