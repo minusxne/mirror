@@ -109,7 +109,6 @@ export const TOOL_GUIDE = [
     blurb: 'Plain text with no box around it, for labels and headings.',
     steps: [
       'Click where you want it and type.',
-      'Double-click empty canvas with the Select tool to do the same thing without switching.',
       'Change size and colour in the panel.'
     ],
     tips: [
@@ -248,7 +247,7 @@ export const SHORTCUT_GROUPS = [
   {
     group: 'Editing',
     keys: [
-      ['Double-click', 'Edit an item, or make text on empty canvas'],
+      ['Double-click', 'Edit the thing under the cursor'],
       ['Shift + drag', 'Constrain to one axis'],
       ['Shift + resize', 'Keep proportions'],
       ['Alt + resize', 'Resize around the centre'],

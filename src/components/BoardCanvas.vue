@@ -730,21 +730,16 @@ function onWheel (event) {
 
 /* -------------------------------------------------------- double click -- */
 
+/** Double-click only ever opens something for editing; it never creates. */
 function onDoubleClick (event) {
   const hitId = itemIdAt(event)
-  if (hitId) {
-    const item = items[hitId]
-    if (!item) return
-    if (['sticky', 'text', 'math', 'calc', 'plot'].includes(item.type)) {
-      select(hitId)
-      editingId.value = hitId
-    }
-    return
+  if (!hitId) return
+  const item = items[hitId]
+  if (!item) return
+  if (['sticky', 'text', 'math', 'calc', 'plot'].includes(item.type)) {
+    select(hitId)
+    editingId.value = hitId
   }
-  if (tool.value !== 'select') return
-  const world = pointerToWorld(event)
-  const item = addItem(createDefaults('text', world, style))
-  editingId.value = item.id
 }
 
 function onContextMenu (event) {
