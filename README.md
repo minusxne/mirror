@@ -161,9 +161,14 @@ Under the gear in the top bar:
 
 - **Hide the top bar** and **hide the tool bar** — they slide away and return
   when the pointer nears that edge, so the canvas is the whole screen while you
-  work. Keyboard shortcuts keep working while they are hidden, and anything that
-  would otherwise be unreachable (an open dialog, the pointer leaving the window)
-  brings them back automatically.
+  work. Keyboard shortcuts keep working while they are hidden.
+
+  A bar stays put while you are actually using it: a menu opened out of it, the
+  style panel beside the toolbar, a rename in progress, or keyboard focus on one
+  of its controls all pin it, so reaching for a popover is never what makes it
+  disappear. Pinning is scoped — opening a menu in the top bar does not drag the
+  tool bar out with it. Full-screen dialogs and the pointer leaving the window
+  bring both back, since there would otherwise be no way to summon them.
 - **Right-drag pans the canvas** — hold the right button and drag to move
   around. A right click without dragging still opens the context menu.
 - **Pen smoothing**, as above.

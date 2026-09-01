@@ -35,6 +35,7 @@ import {
   setTool,
   setZoom,
   settings,
+  overlayPins,
   tool,
   style,
   undo,
@@ -65,6 +66,8 @@ onMounted(async () => {
   window.addEventListener('pointermove', trackPointer, { passive: true })
   document.addEventListener('mouseleave', onWindowLeave)
   document.addEventListener('mouseenter', onWindowEnter)
+  document.addEventListener('focusin', onFocusChange)
+  document.addEventListener('focusout', onFocusChange)
 })
 
 onBeforeUnmount(() => {
@@ -73,10 +76,14 @@ onBeforeUnmount(() => {
   window.removeEventListener('pointermove', trackPointer)
   document.removeEventListener('mouseleave', onWindowLeave)
   document.removeEventListener('mouseenter', onWindowEnter)
+  document.removeEventListener('focusin', onFocusChange)
+  document.removeEventListener('focusout', onFocusChange)
 })
 
 const nearTop = ref(false)
 const nearLeft = ref(false)
+const focusInTop = ref(false)
+const focusInLeft = ref(false)
 
 /**
  * How close the pointer has to get before hidden chrome slides back. Generous
@@ -86,11 +93,43 @@ const nearLeft = ref(false)
 const REVEAL_TOP = 64
 const REVEAL_LEFT = 76
 
+const TOP_CHROME = '.topbar'
+const LEFT_CHROME = '.toolbar, .style-panel'
+
+/** Is the pointer over a bar, or over something hanging off one? */
+function pointerOver (x, y, selector) {
+  return !!document.elementFromPoint(x, y)?.closest?.(selector)
+}
+
 function trackPointer (event) {
   pointer.x = event.clientX
   pointer.y = event.clientY
-  if (settings.autoHideTopBar) nearTop.value = event.clientY <= REVEAL_TOP
-  if (settings.autoHideToolBar) nearLeft.value = event.clientX <= REVEAL_LEFT
+
+  // Once a bar is out, it stays out while the pointer is anywhere within it —
+  // including a popover or panel that reaches far past the reveal strip. The
+  // hit test only runs for a bar that is already showing, so drawing with the
+  // chrome hidden costs nothing.
+  if (settings.autoHideTopBar) {
+    nearTop.value =
+      event.clientY <= REVEAL_TOP ||
+      (nearTop.value && pointerOver(event.clientX, event.clientY, TOP_CHROME))
+  }
+  if (settings.autoHideToolBar) {
+    nearLeft.value =
+      event.clientX <= REVEAL_LEFT ||
+      (nearLeft.value && pointerOver(event.clientX, event.clientY, LEFT_CHROME))
+  }
+}
+
+/**
+ * Keyboard focus pins a bar too. It covers what the pointer cannot: a native
+ * select whose dropdown the browser paints outside the page, and tabbing to a
+ * control without a mouse at all.
+ */
+function onFocusChange (event) {
+  const el = event.type === 'focusout' ? event.relatedTarget : event.target
+  focusInTop.value = !!el?.closest?.(TOP_CHROME)
+  focusInLeft.value = !!el?.closest?.(LEFT_CHROME)
 }
 
 /**
@@ -100,15 +139,29 @@ function trackPointer (event) {
  */
 const pointerAway = ref(false)
 
+/**
+ * Conditions that pin *both* bars: a full-screen dialog covers them anyway, and
+ * with the pointer outside the window there is no way to summon them back.
+ */
 const chromeForced = computed(
-  () => browserOpen.value || helpOpen.value || !!contextMenu.value || pointerAway.value
+  () => browserOpen.value || helpOpen.value || pointerAway.value
 )
 
 const topBarHidden = computed(
-  () => settings.autoHideTopBar && !nearTop.value && !chromeForced.value
+  () =>
+    settings.autoHideTopBar &&
+    !nearTop.value &&
+    !focusInTop.value &&
+    !overlayPins('top') &&
+    !chromeForced.value
 )
 const toolBarHidden = computed(
-  () => settings.autoHideToolBar && !nearLeft.value && !chromeForced.value
+  () =>
+    settings.autoHideToolBar &&
+    !nearLeft.value &&
+    !focusInLeft.value &&
+    !overlayPins('left') &&
+    !chromeForced.value
 )
 
 function onWindowLeave () {

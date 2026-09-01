@@ -36,7 +36,8 @@ export const TOOL_GUIDE = [
     tips: [
       'Scroll to pan up and down, Shift+scroll to pan sideways.',
       'Ctrl+scroll zooms towards the cursor.',
-      'Turn on right-drag panning in Settings if you prefer that.'
+      'Turn on right-drag panning in Settings if you prefer that.',
+      'Settings can also hide the bars until you reach for them, giving the whole window over to the canvas.'
     ]
   },
   {

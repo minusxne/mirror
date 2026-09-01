@@ -95,6 +95,33 @@ export function resetSettings () {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...settings }))
 }
 
+/**
+ * Things that must pin auto-hidden chrome in place while they are open.
+ *
+ * A popover hanging off the top bar is a child of it, so hiding the bar takes
+ * the popover with it — and the pointer has to leave the reveal zone to reach
+ * the popover in the first place. Anything that opens out of a bar registers
+ * here so the bar knows to stay put.
+ */
+const overlays = reactive({})
+
+/**
+ * @param {string} id     stable key for the thing opening
+ * @param {boolean} open
+ * @param {'top'|'left'|'all'} scope  which chrome it needs kept on screen
+ */
+export function setOverlay (id, open, scope = 'all') {
+  if (open) overlays[id] = scope
+  else delete overlays[id]
+}
+
+/** Does anything open right now need `which` chrome pinned? */
+export function overlayPins (which) {
+  return Object.values(overlays).some((scope) => scope === 'all' || scope === which)
+}
+
+export const anyOverlayOpen = computed(() => Object.keys(overlays).length > 0)
+
 export const viewport = reactive({ x: 0, y: 0, k: 1 })
 export const viewportSize = reactive({ w: 1200, h: 800 })
 

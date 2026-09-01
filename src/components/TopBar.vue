@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Icon from './Icon.vue'
 import SettingsMenu from './SettingsMenu.vue'
 import { api } from '../lib/api.js'
@@ -13,6 +13,7 @@ import {
   renameBoard,
   saveState,
   setBackground,
+  setOverlay,
   undo,
   viewport,
   setZoom,
@@ -95,8 +96,19 @@ function onDocumentClick (event) {
   settingsOpen.value = false
 }
 
+// Tell the shell to keep the bar on screen while anything is open out of it,
+// otherwise reaching for the popover is what makes it disappear.
+watch(
+  [settingsOpen, dbOpen, renaming],
+  ([a, b, c]) => setOverlay('topbar', a || b || c, 'top'),
+  { immediate: true }
+)
+
 onMounted(() => document.addEventListener('click', onDocumentClick))
-onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocumentClick)
+  setOverlay('topbar', false, 'top')
+})
 
 const BACKGROUNDS = [
   { id: 'dots', label: 'Dots' },
