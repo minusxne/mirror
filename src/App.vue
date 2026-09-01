@@ -5,6 +5,7 @@ import ToolBar from './components/ToolBar.vue'
 import StylePanel from './components/StylePanel.vue'
 import TopBar from './components/TopBar.vue'
 import HelpDialog from './components/HelpDialog.vue'
+import BoardBrowser from './components/BoardBrowser.vue'
 import ContextMenu from './components/ContextMenu.vue'
 import { api } from './lib/api.js'
 import { TOOLS } from './lib/constants.js'
@@ -18,6 +19,8 @@ import {
   deleteSelected,
   duplicateSelected,
   editingId,
+  eraser,
+  setEraser,
   flush,
   loading,
   loadBoards,
@@ -31,6 +34,7 @@ import {
   sendToBack,
   setTool,
   setZoom,
+  tool,
   style,
   undo,
   viewport,
@@ -42,6 +46,7 @@ const canvas = ref(null)
 const fileInput = ref(null)
 const importInput = ref(null)
 const helpOpen = ref(false)
+const browserOpen = ref(false)
 const contextMenu = shallowRef(null)
 const bootError = ref(null)
 const pointer = { x: 0, y: 0 }
@@ -98,6 +103,7 @@ function onKeydown (event) {
 
   if (event.key === 'Escape') {
     if (contextMenu.value) return (contextMenu.value = null)
+    if (browserOpen.value) return (browserOpen.value = false)
     if (helpOpen.value) return (helpOpen.value = false)
     if (editingId.value) {
       editingId.value = null
@@ -108,6 +114,9 @@ function onKeydown (event) {
     setTool('select')
     return
   }
+
+  // A dialog owns the keyboard while it is open, apart from Escape above.
+  if (browserOpen.value || helpOpen.value) return
 
   // While typing, only the modifier combos below are ours to intercept.
   if (isTypingIn(event.target)) {
@@ -131,6 +140,10 @@ function onKeydown (event) {
       case 'a':
         event.preventDefault()
         selectAll()
+        return
+      case 'b':
+        event.preventDefault()
+        browserOpen.value = true
         return
       case 'd':
         event.preventDefault()
@@ -209,7 +222,13 @@ function onKeydown (event) {
   }
 
   const toolId = TOOL_KEYS[event.key.toLowerCase()]
-  if (toolId) setTool(toolId)
+  if (!toolId) return
+  // Tapping E again flips the eraser between whole-object and brush.
+  if (toolId === 'eraser' && tool.value === 'eraser') {
+    setEraser({ mode: eraser.mode === 'brush' ? 'object' : 'brush' })
+    return
+  }
+  setTool(toolId)
 }
 
 /* -------------------------------------------------------------- paste -- */
@@ -350,7 +369,7 @@ function onContextMenu (payload) {
 
 <template>
   <div class="app" @dragover.prevent @drop="onDrop" @pointerdown="contextMenu = null">
-    <TopBar @help="helpOpen = true" @import="onImportClick" />
+    <TopBar @help="helpOpen = true" @import="onImportClick" @browse="browserOpen = true" />
 
     <main class="stage">
       <BoardCanvas ref="canvas" @context-menu="onContextMenu" />
@@ -365,6 +384,7 @@ function onContextMenu (payload) {
       </div>
     </main>
 
+    <BoardBrowser v-if="browserOpen" @close="browserOpen = false" />
     <ContextMenu v-if="contextMenu" :menu="contextMenu" @close="contextMenu = null" />
     <HelpDialog v-if="helpOpen" @close="helpOpen = false" />
 

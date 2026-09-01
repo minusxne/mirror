@@ -4,6 +4,7 @@ import VectorItem from './VectorItem.vue'
 import HtmlItem from './HtmlItem.vue'
 import { createDefaults, markerData, AUTO_SIZED_TYPES } from '../lib/factory.js'
 import { normalizeRect, pointsBounds, rectsIntersect, simplifyPath } from '../lib/geometry.js'
+import { eraseFromStroke, runBounds } from '../lib/erase.js'
 import { VECTOR_TYPES } from '../lib/constants.js'
 import {
   addItem,
@@ -11,6 +12,7 @@ import {
   clearSelection,
   commitSnapshot,
   editingId,
+  eraser,
   items,
   patchItem,
   patchItemQuiet,
@@ -39,6 +41,7 @@ const surface = ref(null)
 const spaceDown = ref(false)
 const marquee = shallowRef(null) // screen-space rect while box-selecting
 const hoverId = ref(null)
+const brushAt = shallowRef(null)  // screen-space eraser ring
 
 /** The in-flight gesture. Null when the pointer is up. */
 let gesture = null
@@ -127,7 +130,8 @@ const cursor = computed(() => {
     case 'hand': return 'grab'
     case 'pen':
     case 'marker': return 'crosshair'
-    case 'eraser': return 'cell'
+    // The brush draws its own ring, so the pointer itself gets out of the way.
+    case 'eraser': return eraser.mode === 'brush' ? 'none' : 'cell'
     case 'select': return 'default'
     default: return 'crosshair'
   }
@@ -218,8 +222,15 @@ function onPointerDown (event) {
   }
 
   if (tool.value === 'eraser') {
-    beginGesture({ mode: 'erase', changes: [] })
-    eraseAt(event)
+    if (eraser.mode === 'brush') {
+      // One undo entry for the whole sweep: `before` collects the original
+      // state of everything the brush touches, however many frames that takes.
+      beginGesture({ mode: 'brush-erase', before: new Map(), last: world })
+      brushEraseTo(world, world)
+    } else {
+      beginGesture({ mode: 'erase', changes: [] })
+      eraseAt(event)
+    }
     return
   }
 
@@ -271,6 +282,8 @@ function onPointerDown (event) {
 }
 
 function onPointerMove (event) {
+  if (tool.value === 'eraser' && eraser.mode === 'brush') brushAt.value = pointerToScreen(event)
+
   if (!gesture) {
     if (tool.value === 'select') hoverId.value = itemIdAt(event)
     return
@@ -286,6 +299,13 @@ function onPointerMove (event) {
     case 'erase':
       eraseAt(event)
       break
+
+    case 'brush-erase': {
+      const world = pointerToWorld(event)
+      brushEraseTo(gesture.last, world)
+      gesture.last = world
+      break
+    }
 
     case 'draw': {
       const world = pointerToWorld(event)
@@ -367,12 +387,17 @@ function onPointerUp (event) {
     case 'erase':
       if (g.changes.length) recordChanges(g.changes)
       break
+
+    case 'brush-erase':
+      commitSnapshot(g.before)
+      break
   }
 }
 
 function onPointerLeave (event) {
   if (gesture) onPointerUp(event)
   hoverId.value = null
+  brushAt.value = null
 }
 
 /* --------------------------------------------------------------- tools -- */
@@ -488,6 +513,53 @@ function finishShape (g) {
   recordChanges([{ id: g.id, before: null, after: JSON.parse(JSON.stringify(final)) }])
   select(g.id)
   setTool('select')
+}
+
+/**
+ * Rub out the ink under the brush as it sweeps from `from` to `to`.
+ *
+ * Only freehand strokes are affected. Notes, shapes and formulas are objects,
+ * not ink — there is no meaningful "half a sticky note" — so the brush leaves
+ * them alone and the object eraser handles those.
+ */
+function brushEraseTo (from, to) {
+  const radius = eraser.size / 2
+  const before = gesture.before
+
+  for (const item of Object.values(items)) {
+    if (item.type !== 'path') continue
+
+    const runs = eraseFromStroke(item, from, to, radius)
+    if (runs === null) continue
+
+    // Remember the original the first time this stroke is touched, so undo
+    // restores it whole no matter how many passes the brush makes.
+    if (!before.has(item.id)) before.set(item.id, JSON.parse(JSON.stringify(item)))
+
+    if (!runs.length) {
+      removeItemsQuiet([item.id])
+      continue
+    }
+
+    // The first surviving run stays as this item; the rest become new strokes,
+    // which is what makes erasing through the middle of a line split it in two.
+    runs.forEach((run, index) => {
+      const simplified = simplifyPath(run, 0.4)
+      const b = runBounds(simplified)
+      const points = simplified.map(([x, y]) => [round(x - b.x), round(y - b.y)])
+      const geometry = { x: item.x + b.x, y: item.y + b.y, w: b.w, h: b.h, data: { points } }
+
+      if (index === 0) {
+        patchItem(item.id, geometry)
+        return
+      }
+      const piece = addItem(
+        { type: 'path', ...geometry, z: item.z, data: { ...item.data, points } },
+        { select: false, record: false }
+      )
+      before.set(piece.id, null)
+    })
+  }
 }
 
 function eraseAt (event) {
@@ -700,6 +772,14 @@ defineExpose({ pointerToWorld, surface })
         :height="items[hoverId].h * viewport.k"
       />
 
+      <circle
+        v-if="brushAt && tool === 'eraser' && eraser.mode === 'brush'"
+        class="brush-ring"
+        :cx="brushAt.x"
+        :cy="brushAt.y"
+        :r="Math.max(3, (eraser.size / 2) * viewport.k)"
+      />
+
       <rect
         v-if="marquee"
         class="marquee"
@@ -778,6 +858,13 @@ defineExpose({ pointerToWorld, surface })
   fill: color-mix(in srgb, var(--accent) 12%, transparent);
   stroke: var(--accent);
   stroke-width: 1;
+}
+
+.brush-ring {
+  fill: color-mix(in srgb, var(--accent) 8%, transparent);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
 }
 
 .handle {

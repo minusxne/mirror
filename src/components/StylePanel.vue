@@ -1,10 +1,12 @@
 <script setup>
 import { computed } from 'vue'
 import Icon from './Icon.vue'
-import { FONT_SIZES, HIGHLIGHTER_COLORS, INK_COLORS, NOTE_COLORS, STROKE_WIDTHS } from '../lib/constants.js'
+import { ERASER_SIZES, FONT_SIZES, HIGHLIGHTER_COLORS, INK_COLORS, NOTE_COLORS, STROKE_WIDTHS } from '../lib/constants.js'
 import {
   bringToFront,
   deleteSelected,
+  eraser,
+  setEraser,
   duplicateSelected,
   selectedItems,
   selection,
@@ -51,10 +53,13 @@ const showDash = computed(() =>
 
 const inkPalette = computed(() => (tool.value === 'marker' ? HIGHLIGHTER_COLORS : INK_COLORS))
 
+const showEraser = computed(() => tool.value === 'eraser')
+
 const visible = computed(
   () =>
     editingSelection.value ||
-    ['pen', 'marker', 'sticky', 'text', 'math', 'rect', 'ellipse', 'diamond', 'line', 'arrow'].includes(tool.value)
+    ['pen', 'marker', 'sticky', 'text', 'math', 'rect', 'ellipse', 'diamond', 'line', 'arrow', 'eraser']
+      .includes(tool.value)
 )
 
 /** Read the value shown as "current" — the selection's, or the tool default. */
@@ -82,6 +87,43 @@ const setDash = (value) => apply({ dash: value }, 'dash', value)
 
 <template>
   <div v-if="visible" class="style-panel">
+    <template v-if="showEraser">
+      <div class="row">
+        <span class="label">Eraser</span>
+        <div class="chips modes">
+          <button
+            class="chip text-chip mode"
+            :class="{ on: eraser.mode === 'object' }"
+            title="Remove whole things — notes, shapes, strokes, formulas"
+            @click="setEraser({ mode: 'object' })"
+          >Object</button>
+          <button
+            class="chip text-chip mode"
+            :class="{ on: eraser.mode === 'brush' }"
+            title="Rub out only the ink you paint over, splitting strokes"
+            @click="setEraser({ mode: 'brush' })"
+          >Brush</button>
+        </div>
+      </div>
+
+      <div v-if="eraser.mode === 'brush'" class="row">
+        <span class="label">Brush size</span>
+        <div class="chips sizes">
+          <button
+            v-for="sz in ERASER_SIZES"
+            :key="sz"
+            class="chip size-chip"
+            :class="{ on: eraser.size === sz }"
+            :title="`${sz}px`"
+            @click="setEraser({ size: sz })"
+          >
+            <span :style="{ width: `${Math.min(sz / 3.6, 22)}px`, height: `${Math.min(sz / 3.6, 22)}px` }" />
+          </button>
+        </div>
+        <p class="note">Rubs out pen and highlighter ink only. Use Object mode for notes and shapes.</p>
+      </div>
+    </template>
+
     <template v-if="showInk">
       <div class="row">
         <span class="label">{{ tool === 'marker' && !editingSelection ? 'Highlight' : 'Colour' }}</span>
@@ -290,6 +332,34 @@ const setDash = (value) => apply({ dash: value }, 'dash', value)
 .stroke-chip {
   width: 30px;
   height: 24px;
+}
+.modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.mode {
+  padding: 5px 0;
+  font-size: 11.5px;
+}
+.sizes {
+  align-items: center;
+}
+.size-chip {
+  width: 30px;
+  height: 30px;
+}
+.size-chip span {
+  display: block;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  min-width: 4px;
+  min-height: 4px;
+}
+.note {
+  margin: 2px 0 0;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--faint);
 }
 .stroke-chip span {
   display: block;

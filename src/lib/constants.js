@@ -35,6 +35,7 @@ export const HIGHLIGHTER_COLORS = [
 
 export const FONT_SIZES = [12, 14, 16, 20, 24, 32, 40, 56, 72]
 export const STROKE_WIDTHS = [1, 2, 3, 5, 8, 14]
+export const ERASER_SIZES = [12, 20, 32, 52, 80]
 
 /**
  * The toolbar. `key` is the single-key shortcut; `creates` marks tools that
@@ -45,7 +46,7 @@ export const TOOLS = [
   { id: 'hand', label: 'Pan', key: 'h', icon: 'hand', hint: 'Drag the canvas around' },
   { id: 'pen', label: 'Pen', key: 'p', icon: 'pen', creates: true, hint: 'Freehand drawing' },
   { id: 'marker', label: 'Highlighter', key: 'm', icon: 'marker', creates: true, hint: 'Translucent wide stroke' },
-  { id: 'eraser', label: 'Eraser', key: 'e', icon: 'eraser', hint: 'Drag over things to remove them' },
+  { id: 'eraser', label: 'Eraser', key: 'e', icon: 'eraser', hint: 'Object or brush mode — press E again to switch' },
   { id: 'sticky', label: 'Sticky note', key: 'n', icon: 'sticky', creates: true, hint: 'Click to drop a note' },
   { id: 'text', label: 'Text', key: 't', icon: 'text', creates: true, hint: 'Click to start typing' },
   { id: 'math', label: 'Formula', key: 'f', icon: 'sigma', creates: true, hint: 'LaTeX rendered with KaTeX' },

@@ -11,7 +11,7 @@ const SHORTCUTS = [
       ['H', 'Pan'],
       ['P', 'Pen'],
       ['M', 'Highlighter'],
-      ['E', 'Eraser'],
+      ['E', 'Eraser — press again to swap object / brush'],
       ['N', 'Sticky note'],
       ['T', 'Text'],
       ['F', 'Formula (LaTeX)'],
@@ -32,6 +32,7 @@ const SHORTCUTS = [
       ['Ctrl + 0', 'Zoom to 100%'],
       ['Ctrl + 1', 'Fit everything on screen'],
       ['Ctrl + 2', 'Zoom to selection'],
+      ['Ctrl + B', 'Open the board browser'],
       ['+ / −', 'Zoom in / out']
     ]
   },
@@ -100,6 +101,37 @@ const CALC_EXAMPLES = [
             </dl>
           </section>
         </div>
+
+        <section>
+          <h3>The two erasers</h3>
+          <p class="lede">
+            <strong>Object</strong> mode removes whole things — notes, shapes, formulas, an entire
+            stroke — as soon as you touch them. <strong>Brush</strong> mode rubs out only the ink
+            you paint over: drag through the middle of a pen line and it becomes two lines, with a
+            gap exactly where the brush went. Pick the mode and the brush size in the panel beside
+            the toolbar, or tap <kbd>E</kbd> again to switch.
+          </p>
+          <p class="lede">
+            The brush works on pen and highlighter ink. Notes, shapes and formulas are objects
+            rather than ink, so it leaves them alone — use Object mode for those. Either way the
+            whole sweep is a single undo.
+          </p>
+        </section>
+
+        <section>
+          <h3>Boards and groups</h3>
+          <p class="lede">
+            <kbd>Ctrl + B</kbd> opens the board browser: every board as a live thumbnail, sorted
+            into groups you make yourself. Drag a tile onto a group to file it there, click a name
+            to rename it, and use the search box when there are too many to scan. Collapsing a
+            group is remembered.
+          </p>
+          <p class="lede">
+            Deleting a group never deletes boards — they drop back to <em>Ungrouped</em>. Groups
+            are stored in the same database as everything else, so they travel with your work when
+            you sync.
+          </p>
+        </section>
 
         <section>
           <h3>Maths tools</h3>

@@ -23,10 +23,16 @@ export const api = {
   info: () => request('/info'),
 
   listBoards: () => request('/boards'),
-  createBoard: (name) => request('/boards', { method: 'POST', body: { name } }),
+  createBoard: (name, groupId = null) => request('/boards', { method: 'POST', body: { name, groupId } }),
   getBoard: (id) => request(`/boards/${id}`),
   updateBoard: (id, patch) => request(`/boards/${id}`, { method: 'PATCH', body: patch }),
   deleteBoard: (id) => request(`/boards/${id}`, { method: 'DELETE' }),
+  boardPreview: (id) => request(`/boards/${id}/preview`),
+
+  listGroups: () => request('/groups'),
+  createGroup: (name, color) => request('/groups', { method: 'POST', body: { name, color } }),
+  updateGroup: (id, patch) => request(`/groups/${id}`, { method: 'PATCH', body: patch }),
+  deleteGroup: (id) => request(`/groups/${id}`, { method: 'DELETE' }),
 
   commit: (boardId, ops) => request(`/boards/${boardId}/commit`, { method: 'POST', body: { ops } }),
 

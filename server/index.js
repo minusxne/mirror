@@ -20,6 +20,11 @@ import {
   deleteBoard,
   listItems,
   commitOps,
+  listGroups,
+  createGroup,
+  updateGroup,
+  deleteGroup,
+  boardPreview,
   replaceBoardItems,
   databaseStats
 } from './db.js'
@@ -57,11 +62,25 @@ app.get('/api/info', (_req, res) => {
 
 /* ---------------------------------------------------------------- boards -- */
 
-app.get('/api/boards', (_req, res) => res.json({ boards: listBoards(db) }))
+app.get('/api/boards', (_req, res) =>
+  res.json({ boards: listBoards(db), groups: listGroups(db) })
+)
 
 app.post('/api/boards', (req, res) => {
-  const board = createBoard(db, req.body?.name || 'Untitled board', req.body?.background || 'dots')
+  const board = createBoard(
+    db,
+    req.body?.name || 'Untitled board',
+    req.body?.background || 'dots',
+    req.body?.groupId || null
+  )
   asJson(res, 201, { board })
+})
+
+/** Compact geometry for the board browser thumbnails. */
+app.get('/api/boards/:id/preview', (req, res) => {
+  const board = getBoard(db, req.params.id)
+  if (!board) return notFound(res)
+  res.json({ preview: boardPreview(db, board.id), updatedAt: board.updated_at })
 })
 
 app.get('/api/boards/:id', (req, res) => {
@@ -81,6 +100,26 @@ app.delete('/api/boards/:id', (req, res) => {
     return asJson(res, 409, { error: 'last_board', message: 'Cannot delete the only board.' })
   }
   if (!deleteBoard(db, req.params.id)) return notFound(res)
+  res.json({ ok: true })
+})
+
+/* ---------------------------------------------------------------- groups -- */
+
+app.get('/api/groups', (_req, res) => res.json({ groups: listGroups(db) }))
+
+app.post('/api/groups', (req, res) => {
+  const group = createGroup(db, req.body?.name || 'New group', req.body?.color)
+  asJson(res, 201, { group })
+})
+
+app.patch('/api/groups/:id', (req, res) => {
+  const group = updateGroup(db, req.params.id, req.body || {})
+  if (!group) return notFound(res)
+  res.json({ group })
+})
+
+app.delete('/api/groups/:id', (req, res) => {
+  if (!deleteGroup(db, req.params.id)) return notFound(res)
   res.json({ ok: true })
 })
 

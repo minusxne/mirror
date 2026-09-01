@@ -21,7 +21,7 @@ export const PROJECT_ROOT = path.resolve(__dirname, '..')
 /** Where the database lives, relative to the project root. */
 export const DEFAULT_DB_RELATIVE = 'data/study-board.db'
 
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 
 /** Item kinds the board understands. Anything else is rejected on write. */
 export const ITEM_TYPES = new Set([
@@ -94,7 +94,22 @@ function migrate (db) {
     );
 
     CREATE INDEX IF NOT EXISTS idx_items_board ON items(board_id, z);
+
+    CREATE TABLE IF NOT EXISTS board_groups (
+      id         TEXT PRIMARY KEY,
+      name       TEXT    NOT NULL,
+      color      TEXT    NOT NULL DEFAULT '#8b8d98',
+      collapsed  INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL
+    );
   `)
+
+  // Databases written before groups existed need the column adding. Checking
+  // the table rather than the version number keeps this safe to re-run.
+  if (!hasColumn(db, 'boards', 'group_id')) {
+    db.exec('ALTER TABLE boards ADD COLUMN group_id TEXT')
+  }
+  db.exec('CREATE INDEX IF NOT EXISTS idx_boards_group ON boards(group_id, updated_at)')
 
   const version = Number(getMeta(db, 'schema_version') || 0)
   if (version < SCHEMA_VERSION) setMeta(db, 'schema_version', String(SCHEMA_VERSION))
@@ -121,12 +136,66 @@ export function setMeta (db, key, value) {
   ).run(key, String(value))
 }
 
+function hasColumn (db, table, column) {
+  return db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === column)
+}
+
+/* ---------------------------------------------------------------- groups -- */
+
+export function listGroups (db) {
+  return db
+    .prepare(
+      `SELECT g.id, g.name, g.color, g.collapsed, g.created_at,
+              (SELECT COUNT(*) FROM boards b WHERE b.group_id = g.id) AS board_count
+         FROM board_groups g
+        ORDER BY g.created_at ASC`
+    )
+    .all()
+}
+
+export function createGroup (db, name = 'New group', color = '#8b8d98') {
+  const id = crypto.randomUUID()
+  db.prepare('INSERT INTO board_groups (id, name, color, collapsed, created_at) VALUES (?, ?, ?, 0, ?)').run(
+    id,
+    String(name).slice(0, 120) || 'New group',
+    String(color).slice(0, 32),
+    Date.now()
+  )
+  return db.prepare('SELECT * FROM board_groups WHERE id = ?').get(id)
+}
+
+export function updateGroup (db, id, patch) {
+  const group = db.prepare('SELECT * FROM board_groups WHERE id = ?').get(id)
+  if (!group) return null
+  db.prepare('UPDATE board_groups SET name = ?, color = ?, collapsed = ? WHERE id = ?').run(
+    patch.name === undefined ? group.name : String(patch.name).slice(0, 120),
+    patch.color === undefined ? group.color : String(patch.color).slice(0, 32),
+    patch.collapsed === undefined ? group.collapsed : (patch.collapsed ? 1 : 0),
+    id
+  )
+  return db.prepare('SELECT * FROM board_groups WHERE id = ?').get(id)
+}
+
+/** Deleting a group never deletes boards — they fall back to Ungrouped. */
+export function deleteGroup (db, id) {
+  db.exec('BEGIN IMMEDIATE')
+  try {
+    db.prepare('UPDATE boards SET group_id = NULL WHERE group_id = ?').run(id)
+    const info = db.prepare('DELETE FROM board_groups WHERE id = ?').run(id)
+    db.exec('COMMIT')
+    return info.changes > 0
+  } catch (err) {
+    db.exec('ROLLBACK')
+    throw err
+  }
+}
+
 /* ---------------------------------------------------------------- boards -- */
 
 export function listBoards (db) {
   return db
     .prepare(
-      `SELECT b.id, b.name, b.background, b.created_at, b.updated_at,
+      `SELECT b.id, b.name, b.background, b.group_id, b.created_at, b.updated_at,
               (SELECT COUNT(*) FROM items i WHERE i.board_id = b.id) AS item_count
          FROM boards b
         ORDER BY b.updated_at DESC`
@@ -138,12 +207,12 @@ export function getBoard (db, id) {
   return db.prepare('SELECT * FROM boards WHERE id = ?').get(id) || null
 }
 
-export function createBoard (db, name = 'Untitled board', background = 'dots') {
+export function createBoard (db, name = 'Untitled board', background = 'dots', groupId = null) {
   const now = Date.now()
   const id = crypto.randomUUID()
   db.prepare(
-    'INSERT INTO boards (id, name, background, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
-  ).run(id, String(name).slice(0, 200) || 'Untitled board', background, now, now)
+    'INSERT INTO boards (id, name, background, group_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run(id, String(name).slice(0, 200) || 'Untitled board', background, groupId || null, now, now)
   return getBoard(db, id)
 }
 
@@ -152,10 +221,15 @@ export function updateBoard (db, id, patch) {
   if (!board) return null
   const name = patch.name === undefined ? board.name : String(patch.name).slice(0, 200)
   const background = patch.background === undefined ? board.background : String(patch.background)
-  db.prepare('UPDATE boards SET name = ?, background = ?, updated_at = ? WHERE id = ?').run(
+  const groupId = patch.groupId === undefined ? board.group_id : (patch.groupId || null)
+  // Moving a board between groups is not an edit to its contents, so it must
+  // not bump updated_at — that timestamp is what the sync tool compares.
+  const touch = patch.name !== undefined || patch.background !== undefined
+  db.prepare('UPDATE boards SET name = ?, background = ?, group_id = ?, updated_at = ? WHERE id = ?').run(
     name,
     background,
-    Date.now(),
+    groupId,
+    touch ? Date.now() : board.updated_at,
     id
   )
   return getBoard(db, id)
@@ -307,6 +381,93 @@ export function replaceBoardItems (db, boardId, items) {
     db.exec('ROLLBACK')
     throw err
   }
+}
+
+/* --------------------------------------------------------------- preview -- */
+
+const MAX_PREVIEW_ITEMS = 260
+const MAX_PREVIEW_POINTS = 16
+
+/**
+ * A miniature description of a board, for the thumbnails in the board browser.
+ *
+ * Sending real board data would not scale — a few thousand strokes is megabytes,
+ * and the browser wants several boards at once. So this keeps only what shows up
+ * at thumbnail size: geometry, colour, and heavily decimated stroke paths. Image
+ * data URIs and calculator text are dropped entirely; they are drawn as blocks.
+ *
+ * When a board has more items than fit, the largest are kept — those are the
+ * ones you would actually see.
+ */
+export function boardPreview (db, boardId) {
+  const rows = db
+    .prepare('SELECT type, x, y, w, h, z, data FROM items WHERE board_id = ?')
+    .all(boardId)
+
+  let minX = Infinity; let minY = Infinity; let maxX = -Infinity; let maxY = -Infinity
+  for (const r of rows) {
+    minX = Math.min(minX, r.x)
+    minY = Math.min(minY, r.y)
+    maxX = Math.max(maxX, r.x + r.w)
+    maxY = Math.max(maxY, r.y + r.h)
+  }
+
+  const chosen = rows.length <= MAX_PREVIEW_ITEMS
+    ? rows
+    : [...rows].sort((a, b) => b.w * b.h - a.w * a.h).slice(0, MAX_PREVIEW_ITEMS)
+
+  const items = chosen
+    .sort((a, b) => a.z - b.z)
+    .map((r) => {
+      let data = {}
+      try {
+        data = JSON.parse(r.data)
+      } catch { /* keep the empty object */ }
+
+      const out = {
+        type: r.type,
+        x: round2(r.x),
+        y: round2(r.y),
+        w: round2(r.w),
+        h: round2(r.h)
+      }
+      if (data.color) out.color = data.color
+      if (data.fill) out.fill = data.fill
+      if (data.strokeWidth) out.strokeWidth = data.strokeWidth
+      if (data.opacity !== undefined && data.opacity !== 1) out.opacity = data.opacity
+
+      if (Array.isArray(data.points) && data.points.length) {
+        out.points = decimate(data.points, MAX_PREVIEW_POINTS)
+      }
+      if (r.type === 'sticky' || r.type === 'text') {
+        const text = String(data.text || '').trim()
+        if (text) out.label = text.slice(0, 90)
+      }
+      return out
+    })
+
+  return {
+    bounds: rows.length
+      ? { x: round2(minX), y: round2(minY), w: round2(maxX - minX), h: round2(maxY - minY) }
+      : null,
+    count: rows.length,
+    shown: items.length,
+    items
+  }
+}
+
+const round2 = (n) => Math.round(n * 100) / 100
+
+/** Keep the endpoints, drop evenly spaced points in between. */
+function decimate (points, max) {
+  if (points.length <= max) return points.map(([x, y]) => [round2(x), round2(y)])
+  const step = (points.length - 1) / (max - 1)
+  const out = []
+  for (let i = 0; i < max; i++) {
+    const [x, y] = points[Math.round(i * step)]
+    out.push([round2(x), round2(y)])
+  }
+  return out
 }
 
 /* ------------------------------------------------------------ statistics -- */

@@ -19,6 +19,7 @@ const uid = () =>
 /* ----------------------------------------------------------------- state -- */
 
 export const boards = ref([])
+export const groups = ref([])
 export const board = ref(null)
 export const items = shallowReactive({})
 export const selection = ref([])
@@ -38,6 +39,18 @@ export const style = reactive({
   fontSize: 20,
   dash: 'solid'
 })
+
+/** Eraser behaviour. `object` removes whole things; `brush` rubs out ink. */
+export const eraser = reactive({
+  mode: localStorage.getItem('mirror:eraserMode') === 'brush' ? 'brush' : 'object',
+  size: Number(localStorage.getItem('mirror:eraserSize')) || 28
+})
+
+export function setEraser (patch) {
+  Object.assign(eraser, patch)
+  localStorage.setItem('mirror:eraserMode', eraser.mode)
+  localStorage.setItem('mirror:eraserSize', String(eraser.size))
+}
 
 export const viewport = reactive({ x: 0, y: 0, k: 1 })
 export const viewportSize = reactive({ w: 1200, h: 800 })
@@ -181,8 +194,9 @@ export function redo () {
 /* ------------------------------------------------------------- boards -- */
 
 export async function loadBoards () {
-  const { boards: list } = await api.listBoards()
+  const { boards: list, groups: groupList } = await api.listBoards()
   boards.value = list
+  if (groupList) groups.value = groupList
   return list
 }
 
@@ -206,11 +220,41 @@ export async function openBoard (id) {
   }
 }
 
-export async function createBoard (name = 'Untitled board') {
-  const { board: b } = await api.createBoard(name)
+export async function createBoard (name = 'Untitled board', groupId = null) {
+  const { board: b } = await api.createBoard(name, groupId)
   await loadBoards()
   await openBoard(b.id)
   return b
+}
+
+export async function moveBoardToGroup (boardId, groupId) {
+  await api.updateBoard(boardId, { groupId: groupId || null })
+  if (board.value?.id === boardId) board.value = { ...board.value, group_id: groupId || null }
+  await loadBoards()
+}
+
+export async function renameBoardById (boardId, name) {
+  const { board: b } = await api.updateBoard(boardId, { name })
+  if (board.value?.id === boardId) board.value = b
+  await loadBoards()
+}
+
+/* ------------------------------------------------------------- groups -- */
+
+export async function createGroup (name = 'New group', color) {
+  const { group } = await api.createGroup(name, color)
+  await loadBoards()
+  return group
+}
+
+export async function updateGroup (id, patch) {
+  await api.updateGroup(id, patch)
+  await loadBoards()
+}
+
+export async function deleteGroup (id) {
+  await api.deleteGroup(id)
+  await loadBoards()
 }
 
 export async function renameBoard (name) {

@@ -5,12 +5,9 @@ import { api } from '../lib/api.js'
 import {
   board,
   boards,
-  createBoard,
-  deleteBoard,
+  groups,
   historyDepth,
   lastError,
-  loadBoards,
-  openBoard,
   redo,
   renameBoard,
   saveState,
@@ -21,9 +18,8 @@ import {
   zoomToFit
 } from '../stores/board.js'
 
-const emit = defineEmits(['help', 'import'])
+const emit = defineEmits(['help', 'import', 'browse'])
 
-const menuOpen = ref(false)
 const dbOpen = ref(false)
 const renaming = ref(false)
 const draftName = ref('')
@@ -31,21 +27,21 @@ const info = ref(null)
 
 const zoomPercent = computed(() => Math.round(viewport.k * 100))
 
+/** The group the open board sits in, shown as a breadcrumb before its name. */
+const currentGroup = computed(() => {
+  const entry = boards.value.find((b) => b.id === board.value?.id)
+  if (!entry?.group_id) return null
+  return groups.value.find((g) => g.id === entry.group_id) || null
+})
+
 const saveLabel = computed(() => {
   if (saveState.value === 'saving') return 'Saving…'
   if (saveState.value === 'error') return 'Not saved'
   return 'Saved'
 })
 
-async function toggleMenu () {
-  menuOpen.value = !menuOpen.value
-  dbOpen.value = false
-  if (menuOpen.value) await loadBoards()
-}
-
 async function toggleDb () {
   dbOpen.value = !dbOpen.value
-  menuOpen.value = false
   if (dbOpen.value) {
     try {
       info.value = await api.info()
@@ -64,17 +60,6 @@ async function commitRename () {
   renaming.value = false
   const next = draftName.value.trim()
   if (next && next !== board.value?.name) await renameBoard(next)
-}
-
-async function onNewBoard () {
-  menuOpen.value = false
-  await createBoard(`Board ${boards.value.length + 1}`)
-}
-
-async function onDeleteBoard (id, name) {
-  if (!confirm(`Delete "${name}"? Everything on it goes with it.`)) return
-  await deleteBoard(id)
-  menuOpen.value = false
 }
 
 async function onExport () {
@@ -97,10 +82,7 @@ const humanBytes = (n) => {
 }
 
 function onDocumentClick (event) {
-  if (!event.target.closest('.has-popover')) {
-    menuOpen.value = false
-    dbOpen.value = false
-  }
+  if (!event.target.closest('.has-popover')) dbOpen.value = false
 }
 
 onMounted(() => document.addEventListener('click', onDocumentClick))
@@ -122,36 +104,16 @@ const BACKGROUNDS = [
         <span class="wordmark">Mirror</span>
       </div>
 
-      <div class="has-popover">
-        <button class="ghost" title="Switch board" @click="toggleMenu">
-          <Icon name="boards" :size="17" />
-          <Icon name="chevron" :size="13" class="chev" />
-        </button>
-        <div v-if="menuOpen" class="popover boards-popover">
-          <div class="popover-head">
-            <span>Boards</span>
-            <button class="mini" @click="onNewBoard">
-              <Icon name="plus" :size="13" /> New
-            </button>
-          </div>
-          <ul class="board-list">
-            <li v-for="b in boards" :key="b.id" :class="{ current: b.id === board?.id }">
-              <button class="board-open" @click="openBoard(b.id); menuOpen = false">
-                <span class="board-name">{{ b.name }}</span>
-                <span class="board-meta">{{ b.item_count }} items</span>
-              </button>
-              <button
-                v-if="boards.length > 1"
-                class="mini danger"
-                title="Delete board"
-                @click.stop="onDeleteBoard(b.id, b.name)"
-              >
-                <Icon name="trash" :size="13" />
-              </button>
-            </li>
-          </ul>
-        </div>
-      </div>
+      <button class="ghost boards-btn" title="Browse boards and groups  (Ctrl+B)" @click="emit('browse')">
+        <Icon name="boards" :size="17" />
+        <Icon name="chevron" :size="13" class="chev" />
+      </button>
+
+      <span v-if="currentGroup" class="crumb">
+        <span class="crumb-dot" :style="{ background: currentGroup.color }" />
+        {{ currentGroup.name }}
+        <span class="crumb-sep">/</span>
+      </span>
 
       <input
         v-if="renaming"
@@ -293,6 +255,24 @@ const BACKGROUNDS = [
   letter-spacing: -0.01em;
 }
 
+.crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--faint);
+  white-space: nowrap;
+  padding-left: 2px;
+}
+.crumb-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.crumb-sep {
+  color: var(--border);
+}
+
 .board-title {
   border: none;
   background: transparent;
@@ -429,10 +409,6 @@ const BACKGROUNDS = [
   padding: 8px;
   z-index: 40;
 }
-.boards-popover {
-  left: 0;
-  width: 280px;
-}
 .db-popover {
   right: 0;
   width: 330px;
@@ -466,58 +442,7 @@ const BACKGROUNDS = [
   color: var(--text);
   border-color: var(--muted);
 }
-.mini.danger:hover {
-  color: #e5484d;
-  border-color: #e5484d;
-}
 
-.board-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  max-height: 320px;
-  overflow-y: auto;
-}
-.board-list li {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  border-radius: 7px;
-}
-.board-list li:hover {
-  background: var(--chip);
-}
-.board-list li.current .board-name {
-  color: var(--accent);
-  font-weight: 600;
-}
-.board-open {
-  flex: 1;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  border: none;
-  background: transparent;
-  color: var(--text);
-  font: inherit;
-  font-size: 12.5px;
-  text-align: left;
-  padding: 7px 8px;
-  cursor: pointer;
-  border-radius: 7px;
-  min-width: 0;
-}
-.board-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.board-meta {
-  font-size: 10.5px;
-  color: var(--faint);
-  flex: none;
-}
 
 .facts {
   display: grid;

@@ -60,7 +60,7 @@ HOST=0.0.0.0 npm run serve
 | **Pan** `H` | Or hold space, or middle-drag, from any tool |
 | **Pen** `P` | Freehand, smoothed and simplified |
 | **Highlighter** `M` | Wide translucent stroke that multiplies over what is under it |
-| **Eraser** `E` | Sweep across things to remove them |
+| **Eraser** `E` | Two modes — see below |
 | **Sticky note** `N` | Auto-shrinking text, eight colours |
 | **Text** `T` | Plain text that grows to fit |
 | **Formula** `F` | LaTeX, typeset live with KaTeX |
@@ -73,6 +73,23 @@ Press `?` in the app for the full shortcut list.
 
 Scroll to pan, `Ctrl`+scroll to zoom at the cursor, `Ctrl+1` to fit everything.
 Undo/redo covers every edit, including multi-item drags and eraser sweeps.
+
+### The two erasers
+
+**Object** mode removes whole things — a note, a shape, a formula, an entire stroke —
+the moment you touch them.
+
+**Brush** mode rubs out only the ink you paint over. Drag through the middle of a pen
+line and it becomes two lines with a gap exactly where the brush went; the stroke is
+resampled and split rather than deleted. Brush size is adjustable, and the sweep shows a
+ring so you can see what you are about to remove.
+
+Switch modes in the panel beside the toolbar, or tap `E` again while the eraser is
+already selected. The choice is remembered between sessions.
+
+The brush works on pen and highlighter ink. Sticky notes, shapes and formulas are
+objects rather than ink — there is no meaningful "half a sticky note" — so the brush
+leaves them alone and Object mode handles them. Either way, one sweep is one undo.
 
 ### The maths tools
 
@@ -99,9 +116,26 @@ line through them.
 The expression parser is hand-written — no `eval` — so a board full of formulas
 can never execute code.
 
-### Boards, export, import
+### Boards and groups
 
-The board switcher in the top bar creates, renames, opens and deletes boards.
+`Ctrl+B` opens the board browser: every board as a live thumbnail, filed into
+groups you create. Drag a tile onto a group to move it, click a name to rename
+it, search when the list gets long, and collapse groups you are not using —
+collapsed state is remembered.
+
+Deleting a group never deletes boards; they fall back to *Ungrouped*.
+
+Thumbnails are drawn from a compact summary the server builds on demand rather
+than from the boards themselves — a 900-stroke board is a 68 KB preview instead
+of a 1.4 MB download, so opening the browser stays instant however much you have
+drawn. Boards larger than that are represented by their most prominent items,
+and the tile says so.
+
+Groups live in the same database as everything else, so they travel with your
+work when you sync.
+
+### Export and import
+
 Any board can be exported to JSON and imported again (or dropped onto the
 canvas), which is handy for sharing a single board without handing over your
 whole database.
@@ -219,6 +253,7 @@ src/
   lib/
     mathEval.js  the expression parser and evaluator
     geometry.js  path smoothing, simplification, hit maths
+    erase.js     brush erasing — resampling and splitting strokes
   stores/board.js  application state, undo/redo, autosave
 tools/
   db-sync.mjs    the scp sync tool  (start at `help`)
