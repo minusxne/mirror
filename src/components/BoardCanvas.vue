@@ -5,6 +5,7 @@ import HtmlItem from './HtmlItem.vue'
 import { createDefaults, markerData, AUTO_SIZED_TYPES } from '../lib/factory.js'
 import { normalizeRect, pointsBounds, rectsIntersect, simplifyPath } from '../lib/geometry.js'
 import { eraseFromStroke, runBounds } from '../lib/erase.js'
+import { createStabiliser } from '../lib/smoothing.js'
 import { VECTOR_TYPES } from '../lib/constants.js'
 import {
   addItem,
@@ -24,6 +25,7 @@ import {
   selection,
   selectionBounds,
   selectionSet,
+  settings,
   setTool,
   snapshot,
   sortedItems,
@@ -208,8 +210,26 @@ const handlePositions = computed(() => {
 /* ------------------------------------------------------------- pointer -- */
 
 function onPointerDown (event) {
-  if (event.button === 2) return // right-click opens the context menu instead
   const target = event.currentTarget
+
+  if (event.button === 2) {
+    // Without the setting, the right button is only ever the context menu.
+    if (!settings.rightClickPan) return
+    target.setPointerCapture?.(event.pointerId)
+    // Pan now, and decide on release whether this was a drag or a plain click
+    // that should still open the menu.
+    beginGesture({
+      mode: 'pan',
+      startX: event.clientX,
+      startY: event.clientY,
+      vx: viewport.x,
+      vy: viewport.y,
+      fromRightButton: true,
+      moved: 0
+    })
+    return
+  }
+
   target.setPointerCapture?.(event.pointerId)
 
   const world = pointerToWorld(event)
@@ -291,8 +311,11 @@ function onPointerMove (event) {
 
   switch (gesture.mode) {
     case 'pan': {
-      viewport.x = gesture.vx + (event.clientX - gesture.startX)
-      viewport.y = gesture.vy + (event.clientY - gesture.startY)
+      const dx = event.clientX - gesture.startX
+      const dy = event.clientY - gesture.startY
+      viewport.x = gesture.vx + dx
+      viewport.y = gesture.vy + dy
+      if (gesture.fromRightButton) gesture.moved = Math.max(gesture.moved, Math.hypot(dx, dy))
       break
     }
 
@@ -308,12 +331,16 @@ function onPointerMove (event) {
     }
 
     case 'draw': {
-      const world = pointerToWorld(event)
+      const raw = pointerToWorld(event)
+      gesture.raw = raw
+      // The nib chases the pointer rather than being it, which is what damps
+      // hand tremor. At `off` the stabiliser is a pass-through.
+      const nib = gesture.stabiliser.push(raw)
       const last = gesture.points[gesture.points.length - 1]
       // Skip sub-pixel jitter; it bloats the stroke without changing its shape.
       const minStep = 1.2 / viewport.k
-      if (Math.hypot(world.x - last[0], world.y - last[1]) < minStep) break
-      gesture.points.push([world.x, world.y])
+      if (Math.hypot(nib.x - last[0], nib.y - last[1]) < minStep) break
+      gesture.points.push([nib.x, nib.y])
       applyStroke(gesture)
       break
     }
@@ -368,6 +395,18 @@ function onPointerUp (event) {
   if (!g) return
 
   switch (g.mode) {
+    case 'pan':
+      // A right click that never became a drag is still a right click.
+      if (g.fromRightButton && g.moved < 4) {
+        emit('context-menu', {
+          x: event.clientX,
+          y: event.clientY,
+          itemId: itemIdAt(event),
+          world: pointerToWorld(event)
+        })
+      }
+      break
+
     case 'draw':
       finishStroke(g)
       break
@@ -415,7 +454,13 @@ function startStroke (world) {
     },
     { select: false, record: false }
   )
-  beginGesture({ mode: 'draw', id: item.id, points: [[world.x, world.y]] })
+  beginGesture({
+    mode: 'draw',
+    id: item.id,
+    points: [[world.x, world.y]],
+    raw: world,
+    stabiliser: createStabiliser(world, settings.smoothing)
+  })
   applyStroke(gesture)
 }
 
@@ -434,16 +479,26 @@ function applyStroke (g) {
 function finishStroke (g) {
   const item = items[g.id]
   if (!item) return
+
+  // Smoothing leaves the nib trailing the pointer; without this the stroke
+  // would stop short of where the hand actually lifted.
+  const tail = g.stabiliser?.flush(g.raw) || []
+  if (tail.length) {
+    g.points.push(...tail)
+    applyStroke(g)
+  }
+
   // A tap with no movement is a dot, not a stroke worth keeping as a path.
   if (g.points.length < 2 && item.w < 1 && item.h < 1) {
     removeItemsQuiet([g.id])
     return
   }
-  const simplified = simplifyPath(item.data.points, 0.8 / viewport.k)
+  const current = items[g.id]
+  const simplified = simplifyPath(current.data.points, 0.8 / viewport.k)
   const b = pointsBounds(simplified)
   patchItemQuiet(g.id, {
-    x: item.x + b.x,
-    y: item.y + b.y,
+    x: current.x + b.x,
+    y: current.y + b.y,
     w: b.w,
     h: b.h,
     data: { points: simplified.map(([x, y]) => [round(x - b.x), round(y - b.y)]) }
@@ -694,6 +749,9 @@ function onDoubleClick (event) {
 
 function onContextMenu (event) {
   event.preventDefault()
+  // With right-drag panning on, the menu is opened from pointerup instead —
+  // by then we know whether the press turned into a drag.
+  if (settings.rightClickPan) return
   const hitId = itemIdAt(event)
   if (hitId && !selectionSet.value.has(hitId)) select(hitId)
   emit('context-menu', {

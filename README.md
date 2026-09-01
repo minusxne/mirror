@@ -58,7 +58,7 @@ HOST=0.0.0.0 npm run serve
 |---|---|
 | **Select** `V` | Move, resize, multi-select, marquee |
 | **Pan** `H` | Or hold space, or middle-drag, from any tool |
-| **Pen** `P` | Freehand, smoothed and simplified |
+| **Pen** `P` | Freehand, with an adjustable stabiliser for handwriting |
 | **Highlighter** `M` | Wide translucent stroke that multiplies over what is under it |
 | **Eraser** `E` | Two modes — see below |
 | **Sticky note** `N` | Auto-shrinking text, eight colours |
@@ -69,10 +69,31 @@ HOST=0.0.0.0 npm run serve
 | **Shapes** `R` `O` `D` `L` `A` | Rectangle, ellipse, diamond, line, arrow |
 | **Images** | Paste from the clipboard or drop a file on the canvas |
 
-Press `?` in the app for the full shortcut list.
+Press `?` for the built-in guide: every tool with an animated demonstration of
+the gesture, step-by-step instructions, and a button that switches you straight
+to it. `Ctrl+B` opens the board browser.
 
 Scroll to pan, `Ctrl`+scroll to zoom at the cursor, `Ctrl+1` to fit everything.
 Undo/redo covers every edit, including multi-item drags and eraser sweeps.
+
+### Pen smoothing
+
+Handwriting with a mouse or trackpad wobbles. The pen has a stabiliser: instead
+of the nib being the cursor, it chases it, closing a fraction of the gap on each
+sample. Small jitter gets damped much more than deliberate movement does.
+
+Four settings, in the panel beside the toolbar or under the gear in the top bar:
+
+| | measured wobble on a deliberately shaky stroke |
+|---|---|
+| **Off** | 20.0 — follows the pointer exactly |
+| **Light** | 7.6 — takes the edge off |
+| **Medium** | 3.9 — good for handwriting |
+| **Strong** | 3.3 — very smooth, noticeably laggy |
+
+The trade is lag: the line trails the cursor, more so at higher strengths. When
+you lift the pen the remaining gap is closed automatically, so a stroke always
+ends where your hand actually stopped rather than where the lag left it.
 
 ### The two erasers
 
@@ -133,6 +154,19 @@ and the tile says so.
 
 Groups live in the same database as everything else, so they travel with your
 work when you sync.
+
+### Settings
+
+Under the gear in the top bar:
+
+- **Hide the top bar** and **hide the tool bar** — they slide away and return
+  when the pointer nears that edge, so the canvas is the whole screen while you
+  work. Keyboard shortcuts keep working while they are hidden, and anything that
+  would otherwise be unreachable (an open dialog, the pointer leaving the window)
+  brings them back automatically.
+- **Right-drag pans the canvas** — hold the right button and drag to move
+  around. A right click without dragging still opens the context menu.
+- **Pen smoothing**, as above.
 
 ### Export and import
 
@@ -297,6 +331,8 @@ src/
     mathEval.js  the expression parser and evaluator
     geometry.js  path smoothing, simplification, hit maths
     erase.js     brush erasing — resampling and splitting strokes
+    smoothing.js the pen stabiliser
+    guide.js     the in-app guide's content
   stores/board.js  application state, undo/redo, autosave
 sync.sh          guided transfer menu — the easy way to move boards
 tools/

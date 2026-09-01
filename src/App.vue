@@ -1,5 +1,5 @@
 <script setup>
-import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import BoardCanvas from './components/BoardCanvas.vue'
 import ToolBar from './components/ToolBar.vue'
 import StylePanel from './components/StylePanel.vue'
@@ -34,6 +34,7 @@ import {
   sendToBack,
   setTool,
   setZoom,
+  settings,
   tool,
   style,
   undo,
@@ -62,17 +63,59 @@ onMounted(async () => {
   window.addEventListener('keydown', onKeydown)
   window.addEventListener('paste', onPaste)
   window.addEventListener('pointermove', trackPointer, { passive: true })
+  document.addEventListener('mouseleave', onWindowLeave)
+  document.addEventListener('mouseenter', onWindowEnter)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
   window.removeEventListener('paste', onPaste)
   window.removeEventListener('pointermove', trackPointer)
+  document.removeEventListener('mouseleave', onWindowLeave)
+  document.removeEventListener('mouseenter', onWindowEnter)
 })
+
+const nearTop = ref(false)
+const nearLeft = ref(false)
+
+/**
+ * How close the pointer has to get before hidden chrome slides back. Generous
+ * enough to catch a deliberate move to the edge, tight enough that it stays out
+ * of the way while you are drawing.
+ */
+const REVEAL_TOP = 64
+const REVEAL_LEFT = 76
 
 function trackPointer (event) {
   pointer.x = event.clientX
   pointer.y = event.clientY
+  if (settings.autoHideTopBar) nearTop.value = event.clientY <= REVEAL_TOP
+  if (settings.autoHideToolBar) nearLeft.value = event.clientX <= REVEAL_LEFT
+}
+
+/**
+ * Hidden chrome is forced back into view whenever something would otherwise be
+ * unreachable — a dialog is open, a menu is showing, or the pointer has left
+ * the window entirely and cannot be used to summon it.
+ */
+const pointerAway = ref(false)
+
+const chromeForced = computed(
+  () => browserOpen.value || helpOpen.value || !!contextMenu.value || pointerAway.value
+)
+
+const topBarHidden = computed(
+  () => settings.autoHideTopBar && !nearTop.value && !chromeForced.value
+)
+const toolBarHidden = computed(
+  () => settings.autoHideToolBar && !nearLeft.value && !chromeForced.value
+)
+
+function onWindowLeave () {
+  pointerAway.value = true
+}
+function onWindowEnter () {
+  pointerAway.value = false
 }
 
 /** World coordinates of the cursor, for pasting things where you are looking. */
@@ -368,7 +411,18 @@ function onContextMenu (payload) {
 </script>
 
 <template>
-  <div class="app" @dragover.prevent @drop="onDrop" @pointerdown="contextMenu = null">
+  <div
+    class="app"
+    :class="{
+      'float-top': settings.autoHideTopBar,
+      'float-left': settings.autoHideToolBar,
+      'top-hidden': topBarHidden,
+      'left-hidden': toolBarHidden
+    }"
+    @dragover.prevent
+    @drop="onDrop"
+    @pointerdown="contextMenu = null"
+  >
     <TopBar @help="helpOpen = true" @import="onImportClick" @browse="browserOpen = true" />
 
     <main class="stage">
@@ -386,7 +440,7 @@ function onContextMenu (payload) {
 
     <BoardBrowser v-if="browserOpen" @close="browserOpen = false" />
     <ContextMenu v-if="contextMenu" :menu="contextMenu" @close="contextMenu = null" />
-    <HelpDialog v-if="helpOpen" @close="helpOpen = false" />
+    <HelpDialog v-if="helpOpen" @close="helpOpen = false" @pick-image="helpOpen = false; onPickImage()" />
 
     <input
       ref="fileInput"
@@ -414,6 +468,42 @@ function onContextMenu (payload) {
   flex-direction: column;
   background: var(--bg);
 }
+
+/* ------------------------------------------------------- auto-hide chrome --
+   When a bar can hide, it is lifted out of the layout first. Sliding an
+   in-flow element would resize the canvas underneath it and shove the whole
+   board sideways every time the pointer neared an edge. */
+.app.float-top :deep(.topbar) {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* Floating over the canvas rather than sitting above it, so it needs a real
+     shadow instead of the inset hairline that separates it in normal layout. */
+  box-shadow: var(--shadow-lg);
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+.app.top-hidden :deep(.topbar) {
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.app.float-left :deep(.toolbar),
+.app.float-left :deep(.style-panel) {
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+.app.left-hidden :deep(.toolbar) {
+  transform: translateY(-50%) translateX(calc(-100% - 16px));
+  opacity: 0;
+  pointer-events: none;
+}
+.app.left-hidden :deep(.style-panel) {
+  transform: translateY(-50%) translateX(calc(-100% - 80px));
+  opacity: 0;
+  pointer-events: none;
+}
+
 
 .stage {
   position: relative;

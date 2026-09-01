@@ -2,11 +2,14 @@
 import { computed } from 'vue'
 import Icon from './Icon.vue'
 import { ERASER_SIZES, FONT_SIZES, HIGHLIGHTER_COLORS, INK_COLORS, NOTE_COLORS, STROKE_WIDTHS } from '../lib/constants.js'
+import { SMOOTHING_OPTIONS } from '../lib/smoothing.js'
 import {
   bringToFront,
   deleteSelected,
   eraser,
   setEraser,
+  settings,
+  setSetting,
   duplicateSelected,
   selectedItems,
   selection,
@@ -54,6 +57,10 @@ const showDash = computed(() =>
 const inkPalette = computed(() => (tool.value === 'marker' ? HIGHLIGHTER_COLORS : INK_COLORS))
 
 const showEraser = computed(() => tool.value === 'eraser')
+
+// Smoothing shapes how a stroke is captured, so it belongs to the pen rather
+// than to anything already on the board — it is offered only while drawing.
+const showSmoothing = computed(() => !editingSelection.value && ['pen', 'marker'].includes(tool.value))
 
 const visible = computed(
   () =>
@@ -177,6 +184,22 @@ const setDash = (value) => apply({ dash: value }, 'dash', value)
             :title="c.name"
             @click="setShapeFill(c.value)"
           />
+        </div>
+      </div>
+    </template>
+
+    <template v-if="showSmoothing">
+      <div class="row">
+        <span class="label">Smoothing</span>
+        <div class="chips smoothing">
+          <button
+            v-for="o in SMOOTHING_OPTIONS"
+            :key="o.id"
+            class="chip text-chip"
+            :class="{ on: settings.smoothing === o.id }"
+            :title="o.hint"
+            @click="setSetting('smoothing', o.id)"
+          >{{ o.label }}</button>
         </div>
       </div>
     </template>
@@ -341,6 +364,14 @@ const setDash = (value) => apply({ dash: value }, 'dash', value)
 .modes {
   display: grid;
   grid-template-columns: 1fr 1fr;
+}
+.smoothing {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+.smoothing .chip {
+  padding: 0 2px;
 }
 .mode {
   min-height: 28px;

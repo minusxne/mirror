@@ -1,182 +1,198 @@
 <script setup>
+import { computed, ref } from 'vue'
 import Icon from './Icon.vue'
+import GuideDemo from './GuideDemo.vue'
+import { SHORTCUT_GROUPS, TOOL_GUIDE } from '../lib/guide.js'
+import { TOOLS } from '../lib/constants.js'
+import { setTool } from '../stores/board.js'
 
-defineEmits(['close'])
+const emit = defineEmits(['close', 'pick-image'])
 
-const SHORTCUTS = [
-  {
-    group: 'Tools',
-    keys: [
-      ['V', 'Select'],
-      ['H', 'Pan'],
-      ['P', 'Pen'],
-      ['M', 'Highlighter'],
-      ['E', 'Eraser — press again to swap object / brush'],
-      ['N', 'Sticky note'],
-      ['T', 'Text'],
-      ['F', 'Formula (LaTeX)'],
-      ['C', 'Calculator'],
-      ['G', 'Graph'],
-      ['R / O / D', 'Rectangle / ellipse / diamond'],
-      ['L / A', 'Line / arrow']
-    ]
-  },
-  {
-    group: 'Canvas',
-    keys: [
-      ['Scroll', 'Pan up and down'],
-      ['Shift + scroll', 'Pan sideways'],
-      ['Ctrl + scroll', 'Zoom to cursor'],
-      ['Space + drag', 'Pan from any tool'],
-      ['Middle-drag', 'Pan'],
-      ['Ctrl + 0', 'Zoom to 100%'],
-      ['Ctrl + 1', 'Fit everything on screen'],
-      ['Ctrl + 2', 'Zoom to selection'],
-      ['Ctrl + B', 'Open the board browser'],
-      ['+ / −', 'Zoom in / out']
-    ]
-  },
-  {
-    group: 'Editing',
-    keys: [
-      ['Double-click', 'Edit an item, or make text on empty canvas'],
-      ['Drag', 'Move the selection'],
-      ['Shift + drag', 'Constrain to one axis'],
-      ['Shift + resize', 'Keep proportions'],
-      ['Alt + resize', 'Resize around the centre'],
-      ['Shift + click', 'Add to / remove from the selection'],
-      ['Ctrl + A', 'Select everything'],
-      ['Ctrl + D', 'Duplicate'],
-      ['Ctrl + C / X / V', 'Copy / cut / paste'],
-      ['Delete', 'Delete the selection'],
-      ['Arrow keys', 'Nudge by 1 (Shift for 10)'],
-      ['[ / ]', 'Send to back / bring to front'],
-      ['Ctrl + Z', 'Undo'],
-      ['Ctrl + Shift + Z', 'Redo'],
-      ['Ctrl + S', 'Force a save now'],
-      ['Esc', 'Finish editing / clear the selection']
-    ]
-  }
+const SECTIONS = [
+  { id: 'start', label: 'Getting started', icon: 'sparkle' },
+  ...TOOL_GUIDE.map((t) => ({ id: t.id, label: t.title, icon: iconFor(t.id), tool: true })),
+  { id: 'boards', label: 'Boards & groups', icon: 'boards' },
+  { id: 'sync', label: 'Two computers', icon: 'sync' },
+  { id: 'shortcuts', label: 'All shortcuts', icon: 'keyboard' }
 ]
 
-const CALC_EXAMPLES = [
-  ['r = 4', 'name a value'],
-  ['area = pi r^2', 'implicit multiplication works'],
-  ['area / 2', 'plain expressions'],
-  ['ans * 3', '`ans` is the previous line'],
-  ['sqrt(2) + 5!', 'functions and factorials'],
-  ['sin(30)', 'switch DEG/RAD on the note'],
-  ['150 + 10%', 'percentages'],
-  ['# a comment', 'ignored']
-]
+function iconFor (id) {
+  const t = TOOLS.find((x) => x.id === id)
+  if (t) return t.icon
+  return id === 'image' ? 'image' : 'rect'
+}
+
+const active = ref('start')
+const current = computed(() => TOOL_GUIDE.find((t) => t.id === active.value) || null)
+
+/** Close the guide and switch to the tool being described, ready to use. */
+function tryTool (id) {
+  setTool(id)
+  emit('close')
+}
 </script>
 
 <template>
-  <div class="scrim" @click.self="$emit('close')">
-    <div class="dialog" role="dialog" aria-label="Help">
+  <div class="scrim" @click.self="emit('close')">
+    <div class="dialog" role="dialog" aria-label="Guide">
       <header>
-        <h2>Mirror — help</h2>
-        <button class="icon-btn" aria-label="Close" @click="$emit('close')">
+        <div class="head-title">
+          <Icon name="help" :size="17" />
+          <h2>Guide</h2>
+        </div>
+        <button class="icon-btn" aria-label="Close" @click="emit('close')">
           <Icon name="close" :size="18" />
         </button>
       </header>
 
       <div class="body">
-        <section class="intro">
-          <p>
-            An infinite board for studying: write, draw, stick notes, typeset formulas, work
-            through calculations and graph functions. Everything is stored on this machine, in
-            one SQLite file.
-          </p>
-        </section>
+        <nav aria-label="Guide sections">
+          <button
+            v-for="s in SECTIONS"
+            :key="s.id"
+            class="nav-item"
+            :class="{ on: active === s.id }"
+            @click="active = s.id"
+          >
+            <Icon :name="s.icon" :size="15" />
+            <span>{{ s.label }}</span>
+          </button>
+        </nav>
 
-        <div class="columns">
-          <section v-for="s in SHORTCUTS" :key="s.group">
-            <h3>{{ s.group }}</h3>
-            <dl>
-              <template v-for="[key, what] in s.keys" :key="key">
-                <dt><kbd>{{ key }}</kbd></dt>
-                <dd>{{ what }}</dd>
-              </template>
-            </dl>
-          </section>
+        <div class="content">
+          <!-- ------------------------------------------------ a tool -- -->
+          <article v-if="current" :key="current.id">
+            <div class="tool-head">
+              <div>
+                <h3>{{ current.title }}</h3>
+                <p class="blurb">{{ current.blurb }}</p>
+              </div>
+              <span v-if="current.key" class="keys">
+                <kbd v-for="k in current.key.split(' ')" :key="k">{{ k }}</kbd>
+              </span>
+            </div>
+
+            <GuideDemo :tool="current.id" />
+
+            <section>
+              <h4>How to use it</h4>
+              <ol>
+                <li v-for="(step, i) in current.steps" :key="i">{{ step }}</li>
+              </ol>
+            </section>
+
+            <section v-if="current.tips?.length">
+              <h4>Worth knowing</h4>
+              <ul>
+                <li v-for="(tip, i) in current.tips" :key="i">{{ tip }}</li>
+              </ul>
+            </section>
+
+            <button v-if="current.id === 'image'" class="try" @click="emit('pick-image')">
+              <Icon name="image" :size="13" /> Choose an image…
+            </button>
+            <button v-else class="try" @click="tryTool(current.id)">
+              <Icon name="play" :size="13" /> Try {{ current.title.toLowerCase() }} now
+            </button>
+          </article>
+
+          <!-- ------------------------------------------ getting started -- -->
+          <article v-else-if="active === 'start'">
+            <h3>An infinite board for studying</h3>
+            <p class="blurb">
+              Write, draw, stick notes, typeset formulas, work through calculations and graph
+              functions — all on one endless canvas. Everything is stored on this machine, in a
+              single file, and nothing is sent anywhere.
+            </p>
+
+            <section>
+              <h4>The three things to know first</h4>
+              <ol>
+                <li>Pick a tool from the bar on the left, or press its letter — <kbd>P</kbd> for the pen, <kbd>N</kbd> for a note.</li>
+                <li>Scroll to move around, <kbd>Ctrl</kbd>+scroll to zoom. <kbd>Ctrl</kbd>+<kbd>1</kbd> fits everything back on screen when you get lost.</li>
+                <li>Nothing needs saving. Every change is written to the board file as you make it.</li>
+              </ol>
+            </section>
+
+            <section>
+              <h4>Where to go next</h4>
+              <ul>
+                <li>Pick any tool on the left of this dialog to see what it does and how.</li>
+                <li><kbd>Ctrl</kbd>+<kbd>B</kbd> opens the board browser, where boards live in groups.</li>
+                <li>The gear in the top bar hides the panels, changes pen smoothing, and turns on right-drag panning.</li>
+              </ul>
+            </section>
+          </article>
+
+          <!-- --------------------------------------------- boards -- -->
+          <article v-else-if="active === 'boards'">
+            <h3>Boards and groups</h3>
+            <p class="blurb">
+              A board is one canvas. You can have as many as you like, filed into groups.
+            </p>
+            <section>
+              <h4>How to use it</h4>
+              <ol>
+                <li>Press <kbd>Ctrl</kbd>+<kbd>B</kbd>, or click the boards button beside the logo.</li>
+                <li>Every board shows a live thumbnail, so you can find one by what is on it.</li>
+                <li>Drag a tile onto a group to file it there. Click a name to rename it.</li>
+                <li>Search when the list gets long; collapse groups you are not using.</li>
+              </ol>
+            </section>
+            <section>
+              <h4>Worth knowing</h4>
+              <ul>
+                <li>Deleting a group never deletes boards — they fall back to Ungrouped.</li>
+                <li>Moving a board between groups does not count as editing it, so it will not confuse the sync tool about which machine is newer.</li>
+                <li>Any board can be exported to JSON on its own and imported elsewhere.</li>
+              </ul>
+            </section>
+          </article>
+
+          <!-- ----------------------------------------------- syncing -- -->
+          <article v-else-if="active === 'sync'">
+            <h3>Working on two computers</h3>
+            <p class="blurb">
+              Your whole board library is one file — <code>data/study-board.db</code> — so moving
+              your work to the laptop is copying that file. A script does it over your network.
+            </p>
+            <section>
+              <h4>How to use it</h4>
+              <ol>
+                <li>In a terminal, in the project folder, run <code>./sync.sh</code>.</li>
+                <li>The first time, it walks you through adding your other computer.</li>
+                <li>After that, pick <em>send</em> before you leave and <em>fetch</em> when you get back.</li>
+              </ol>
+            </section>
+            <pre class="cmd">./sync.sh                    <span class="c"># the menu — no flags to remember</span>
+./sync.sh push laptop        <span class="c"># send your boards there</span>
+./sync.sh pull laptop        <span class="c"># bring theirs back here</span></pre>
+            <section>
+              <h4>Worth knowing</h4>
+              <ul>
+                <li>It refuses to overwrite a machine that has newer work, and backs up whatever it replaces.</li>
+                <li>This is a copy, not a merge — whichever side you copy <em>from</em> wins. Close the board on the receiving machine first.</li>
+                <li>The board file is gitignored, so <code>git push</code> never uploads your notes.</li>
+              </ul>
+            </section>
+          </article>
+
+          <!-- --------------------------------------------- shortcuts -- -->
+          <article v-else-if="active === 'shortcuts'">
+            <h3>Every shortcut</h3>
+            <div class="shortcut-columns">
+              <section v-for="s in SHORTCUT_GROUPS" :key="s.group">
+                <h4>{{ s.group }}</h4>
+                <dl>
+                  <template v-for="[key, what] in s.keys" :key="key">
+                    <dt><kbd>{{ key }}</kbd></dt>
+                    <dd>{{ what }}</dd>
+                  </template>
+                </dl>
+              </section>
+            </div>
+          </article>
         </div>
-
-        <section>
-          <h3>The two erasers</h3>
-          <p class="lede">
-            <strong>Object</strong> mode removes whole things — notes, shapes, formulas, an entire
-            stroke — as soon as you touch them. <strong>Brush</strong> mode rubs out only the ink
-            you paint over: drag through the middle of a pen line and it becomes two lines, with a
-            gap exactly where the brush went. Pick the mode and the brush size in the panel beside
-            the toolbar, or tap <kbd>E</kbd> again to switch.
-          </p>
-          <p class="lede">
-            The brush works on pen and highlighter ink. Notes, shapes and formulas are objects
-            rather than ink, so it leaves them alone — use Object mode for those. Either way the
-            whole sweep is a single undo.
-          </p>
-        </section>
-
-        <section>
-          <h3>Boards and groups</h3>
-          <p class="lede">
-            <kbd>Ctrl + B</kbd> opens the board browser: every board as a live thumbnail, sorted
-            into groups you make yourself. Drag a tile onto a group to file it there, click a name
-            to rename it, and use the search box when there are too many to scan. Collapsing a
-            group is remembered.
-          </p>
-          <p class="lede">
-            Deleting a group never deletes boards — they drop back to <em>Ungrouped</em>. Groups
-            are stored in the same database as everything else, so they travel with your work when
-            you sync.
-          </p>
-        </section>
-
-        <section>
-          <h3>Maths tools</h3>
-          <p class="lede">
-            <strong>Formula</strong> (F) typesets LaTeX with KaTeX — double-click to edit the
-            source. <strong>Graph</strong> (G) plots one or more <code>y = f(x)</code> curves.
-            <strong>Calculator</strong> (C) is a running sheet:
-          </p>
-          <dl class="examples">
-            <template v-for="[code, what] in CALC_EXAMPLES" :key="code">
-              <dt><code>{{ code }}</code></dt>
-              <dd>{{ what }}</dd>
-            </template>
-          </dl>
-          <p class="lede">
-            Functions: <code>sqrt cbrt root abs sign exp ln log log2 sin cos tan asin acos atan
-            atan2 sinh cosh tanh floor ceil round min max hypot gcd lcm ncr npr sum mean fact</code>.
-            Constants: <code>pi tau e phi</code>.
-          </p>
-        </section>
-
-        <section>
-          <h3>Moving the board between machines</h3>
-          <p class="lede">
-            The board is one file — <code>data/study-board.db</code> — and it is gitignored, so
-            <code>git clone</code> gives you the app without anyone's notes. To carry the notes
-            themselves across your network, use the sync tool over scp:
-          </p>
-          <pre class="cmd">node tools/db-sync.mjs init                <span class="c"># first time: create sync.config.json</span>
-node tools/db-sync.mjs add laptop \
-  --host you@laptop.local --path ~/Repos/mirror
-
-node tools/db-sync.mjs status laptop      <span class="c"># who has the newer work?</span>
-node tools/db-sync.mjs push laptop        <span class="c"># send this board over there</span>
-node tools/db-sync.mjs pull laptop        <span class="c"># bring theirs back here</span>
-
-node tools/db-sync.mjs help               <span class="c"># every command and flag</span>
-node tools/db-sync.mjs help push          <span class="c"># detail on one command</span></pre>
-          <p class="lede">
-            It refuses to overwrite a side that has newer edits unless you pass
-            <code>--force</code>, and it backs up whatever it replaces into
-            <code>.db-backups/</code>. Close the app on the receiving machine first — this is a
-            copy, not a merge, so whichever side you copy <em>from</em> wins.
-          </p>
-        </section>
       </div>
     </div>
   </div>
@@ -186,7 +202,7 @@ node tools/db-sync.mjs help push          <span class="c"># detail on one comman
 .scrim {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.4);
+  background: rgba(15, 23, 42, 0.42);
   backdrop-filter: blur(2px);
   display: grid;
   place-items: center;
@@ -194,8 +210,8 @@ node tools/db-sync.mjs help push          <span class="c"># detail on one comman
   padding: 24px;
 }
 .dialog {
-  width: min(880px, 100%);
-  max-height: min(86vh, 900px);
+  width: min(920px, 100%);
+  height: min(84vh, 720px);
   display: flex;
   flex-direction: column;
   background: var(--panel);
@@ -204,18 +220,27 @@ node tools/db-sync.mjs help push          <span class="c"># detail on one comman
   box-shadow: var(--shadow-lg);
   overflow: hidden;
 }
+
 header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--border);
   flex: none;
+}
+.head-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
 }
 h2 {
   margin: 0;
   font-size: 15px;
+  line-height: 20px;
   font-weight: 650;
+  color: var(--text);
 }
 .icon-btn {
   border: none;
@@ -225,39 +250,191 @@ h2 {
   border-radius: 6px;
   width: 28px;
   height: 28px;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .icon-btn:hover {
   background: var(--chip);
   color: var(--text);
 }
+
 .body {
-  padding: 16px;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 188px 1fr;
+}
+
+/* ------------------------------------------------------------------ nav -- */
+nav {
+  border-right: 1px solid var(--border);
+  padding: 8px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 1px;
+  background: var(--bg);
 }
-.intro p {
-  margin: 0;
-  font-size: 13px;
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  border: none;
+  background: transparent;
   color: var(--muted);
-  line-height: 1.6;
-  max-width: 68ch;
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 16px;
+  text-align: left;
+  padding: 7px 9px;
+  border-radius: 7px;
+  cursor: pointer;
+  flex: none;
 }
-.columns {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 22px;
+.nav-item:hover {
+  background: var(--chip);
+  color: var(--text);
+}
+.nav-item.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 550;
+}
+
+/* -------------------------------------------------------------- content -- */
+.content {
+  overflow-y: auto;
+  padding: 18px 22px 24px;
+}
+article {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 62ch;
+}
+.tool-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.tool-head > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 h3 {
-  margin: 0 0 8px;
+  margin: 0;
+  font-size: 17px;
+  line-height: 22px;
+  font-weight: 650;
+  color: var(--text);
+}
+.blurb {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.keys {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+
+section {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+h4 {
+  margin: 0;
   font-size: 10px;
+  line-height: 14px;
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--faint);
   font-weight: 700;
+}
+ol,
+ul {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+li {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+li::marker {
+  color: var(--faint);
+}
+
+kbd {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 14px;
+  background: var(--chip);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 1px 5px;
+  color: var(--text);
+  white-space: nowrap;
+}
+code {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  background: var(--chip);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--text);
+}
+.cmd {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.7;
+  background: var(--chip);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 0;
+  overflow-x: auto;
+  color: var(--text);
+}
+.cmd .c {
+  color: var(--faint);
+}
+
+.try {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 16px;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+.try:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.shortcut-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 22px;
 }
 dl {
   display: grid;
@@ -272,51 +449,24 @@ dt {
 dd {
   margin: 0;
   font-size: 12.5px;
+  line-height: 16px;
   color: var(--muted);
 }
-kbd {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  background: var(--chip);
-  border: 1px solid var(--border);
-  border-bottom-width: 2px;
-  border-radius: 5px;
-  padding: 1px 5px;
-  color: var(--text);
-  white-space: nowrap;
-}
-.examples dt {
-  text-align: left;
-}
-.examples code,
-.lede code {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  background: var(--chip);
-  border-radius: 4px;
-  padding: 1px 5px;
-  color: var(--text);
-}
-.lede {
-  margin: 0 0 10px;
-  font-size: 12.5px;
-  color: var(--muted);
-  line-height: 1.65;
-  max-width: 76ch;
-}
-.cmd {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  line-height: 1.65;
-  background: var(--chip);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px 14px;
-  margin: 0 0 10px;
-  overflow-x: auto;
-  color: var(--text);
-}
-.cmd .c {
-  color: var(--faint);
+
+@media (max-width: 720px) {
+  .body {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  nav {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 4px;
+  }
+  .nav-item span {
+    white-space: nowrap;
+  }
 }
 </style>

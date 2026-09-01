@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import Icon from './Icon.vue'
+import SettingsMenu from './SettingsMenu.vue'
 import { api } from '../lib/api.js'
 import {
   board,
@@ -21,6 +22,7 @@ import {
 const emit = defineEmits(['help', 'import', 'browse'])
 
 const dbOpen = ref(false)
+const settingsOpen = ref(false)
 const renaming = ref(false)
 const draftName = ref('')
 const info = ref(null)
@@ -40,8 +42,14 @@ const saveLabel = computed(() => {
   return 'Saved'
 })
 
+function toggleSettings () {
+  settingsOpen.value = !settingsOpen.value
+  dbOpen.value = false
+}
+
 async function toggleDb () {
   dbOpen.value = !dbOpen.value
+  settingsOpen.value = false
   if (dbOpen.value) {
     try {
       info.value = await api.info()
@@ -82,7 +90,9 @@ const humanBytes = (n) => {
 }
 
 function onDocumentClick (event) {
-  if (!event.target.closest('.has-popover')) dbOpen.value = false
+  if (event.target.closest('.has-popover')) return
+  dbOpen.value = false
+  settingsOpen.value = false
 }
 
 onMounted(() => document.addEventListener('click', onDocumentClick))
@@ -207,7 +217,21 @@ const BACKGROUNDS = [
         </div>
       </div>
 
-      <button class="ghost" title="Keyboard shortcuts and help  (?)" @click="emit('help')">
+      <div class="group has-popover">
+        <button
+          class="ghost"
+          :class="{ active: settingsOpen }"
+          title="Settings"
+          @click="toggleSettings"
+        >
+          <Icon name="settings" :size="17" />
+        </button>
+        <div v-if="settingsOpen" class="popover settings-popover">
+          <SettingsMenu @close="settingsOpen = false" />
+        </div>
+      </div>
+
+      <button class="ghost" title="Guide and keyboard shortcuts  (?)" @click="emit('help')">
         <Icon name="help" :size="17" />
       </button>
     </div>
@@ -432,6 +456,14 @@ const BACKGROUNDS = [
 .db-popover {
   right: 0;
   width: 330px;
+}
+.settings-popover {
+  right: 0;
+  width: 340px;
+}
+.ghost.active {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 .popover-head {
   display: flex;

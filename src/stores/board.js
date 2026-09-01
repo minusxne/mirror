@@ -52,6 +52,49 @@ export function setEraser (patch) {
   localStorage.setItem('mirror:eraserSize', String(eraser.size))
 }
 
+/* ---------------------------------------------------------- preferences -- */
+
+const SETTINGS_KEY = 'mirror:settings'
+
+const DEFAULT_SETTINGS = {
+  /** Pen stabiliser: off | light | medium | strong. */
+  smoothing: 'light',
+  /** Slide the top bar and tool bar away until the pointer approaches. */
+  autoHideTopBar: false,
+  autoHideToolBar: false,
+  /** Drag with the right button to pan; a right click without dragging still
+   *  opens the context menu. */
+  rightClickPan: false
+}
+
+function loadSettings () {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')
+    const out = { ...DEFAULT_SETTINGS }
+    for (const key of Object.keys(DEFAULT_SETTINGS)) {
+      if (raw[key] !== undefined && typeof raw[key] === typeof DEFAULT_SETTINGS[key]) {
+        out[key] = raw[key]
+      }
+    }
+    return out
+  } catch {
+    return { ...DEFAULT_SETTINGS }
+  }
+}
+
+export const settings = reactive(loadSettings())
+
+export function setSetting (key, value) {
+  if (!(key in DEFAULT_SETTINGS)) return
+  settings[key] = value
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...settings }))
+}
+
+export function resetSettings () {
+  Object.assign(settings, DEFAULT_SETTINGS)
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...settings }))
+}
+
 export const viewport = reactive({ x: 0, y: 0, k: 1 })
 export const viewportSize = reactive({ w: 1200, h: 800 })
 
