@@ -1,0 +1,109 @@
+/* Design tokens. Both themes are defined so the board follows the OS setting. */
+:root {
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --bg: #f4f5f7;
+  --canvas: #fbfbfc;
+  --panel: #ffffff;
+  --chip: #f1f2f4;
+  --border: #e3e5e9;
+  --grid: #d7dae1;
+
+  --text: #1f2933;
+  --muted: #6b7280;
+  --faint: #9aa1ad;
+
+  --accent: #3b6bf5;
+  --accent-soft: #e8eefe;
+
+  --plot-bg: #ffffff;
+  --plot-grid: #eceef2;
+  --plot-axis: #b3b9c4;
+  --plot-tick: #9aa1ad;
+
+  --shadow-md: 0 1px 2px rgba(15, 23, 42, 0.06), 0 4px 12px -6px rgba(15, 23, 42, 0.18);
+  --shadow-lg: 0 1px 2px rgba(15, 23, 42, 0.08), 0 12px 32px -12px rgba(15, 23, 42, 0.3);
+
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16181d;
+    --canvas: #1b1e24;
+    --panel: #21242b;
+    --chip: #2a2e37;
+    --border: #333843;
+    --grid: #333843;
+
+    --text: #e7e9ee;
+    --muted: #9aa1ad;
+    --faint: #6b7280;
+
+    --accent: #6d8dff;
+    --accent-soft: #26304a;
+
+    --plot-bg: #1b1e24;
+    --plot-grid: #2a2e37;
+    --plot-axis: #565d6b;
+    --plot-tick: #7d8492;
+
+    --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 12px -6px rgba(0, 0, 0, 0.55);
+    --shadow-lg: 0 1px 2px rgba(0, 0, 0, 0.45), 0 12px 32px -12px rgba(0, 0, 0, 0.7);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+button {
+  font-family: inherit;
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+/* Scrollbars inside panels, kept out of the way. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* KaTeX inherits the item's colour rather than forcing black. */
+.katex {
+  color: inherit;
+}
+.katex-display {
+  margin: 0 !important;
+}

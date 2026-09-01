@@ -1,0 +1,43 @@
+# ---------------------------------------------------------------------------
+# Dependencies / build output
+# ---------------------------------------------------------------------------
+node_modules/
+dist/
+.vite/
+*.log
+npm-debug.log*
+
+# ---------------------------------------------------------------------------
+# THE DATABASE — never commit it.
+# The board contents live here. Move it between machines with:
+#   node tools/db-sync.mjs push <device>
+#   node tools/db-sync.mjs pull <device>
+# ---------------------------------------------------------------------------
+data/*
+!data/.gitkeep
+
+# SQLite sidecar files (write-ahead log / shared memory), wherever they land
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Timestamped safety copies made by the sync tool before it overwrites anything
+.db-backups/
+
+# ---------------------------------------------------------------------------
+# Device-specific sync configuration (hostnames, usernames, ssh key paths).
+# Recreate it on each machine with:  node tools/db-sync.mjs init
+# ---------------------------------------------------------------------------
+sync.config.json
+
+# ---------------------------------------------------------------------------
+# Editor / OS noise
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

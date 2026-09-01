@@ -1,0 +1,28 @@
+{
+  "_comment": "Copy this to sync.config.json (or run: node tools/db-sync.mjs init) and edit it for THIS machine. sync.config.json is gitignored because each machine points at the others: on the PC you list the laptop, on the laptop you list the PC.",
+
+  "database": "data/study-board.db",
+
+  "devices": {
+    "laptop": {
+      "host": "you@laptop.local",
+      "path": "~/Repos/mirror",
+      "port": 22,
+      "identity": null
+    },
+    "pc": {
+      "host": "you@192.168.1.42",
+      "path": "~/Repos/mirror",
+      "port": 22,
+      "identity": "~/.ssh/id_ed25519"
+    }
+  },
+
+  "_fields": {
+    "host": "ssh target — the thing that makes `ssh you@laptop.local` work",
+    "path": "where this repo is cloned on that machine",
+    "port": "ssh port, omit or 22 for the default",
+    "identity": "ssh private key, or null to let ssh decide",
+    "sshOptions": "optional array of extra flags passed to both ssh and scp"
+  }
+}

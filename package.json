@@ -1,0 +1,30 @@
+{
+  "name": "mirror-study-board",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A local-first, Miro-like infinite study board (draw, write, do maths) backed by a single portable SQLite file.",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,magenta -k \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "node --watch server/index.js",
+    "dev:web": "vite",
+    "build": "vite build",
+    "start": "node server/index.js",
+    "serve": "npm run build && node server/index.js",
+    "sync": "node tools/db-sync.mjs",
+    "sync:help": "node tools/db-sync.mjs help"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "katex": "^0.18.5",
+    "vue": "^3.5.42"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.8",
+    "concurrently": "^10.0.5",
+    "vite": "^8.2.2"
+  }
+}
