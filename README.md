@@ -64,7 +64,7 @@ HOST=0.0.0.0 npm run serve
 | **Sticky note** `N` | Auto-shrinking text, eight colours |
 | **Text** `T` | Plain text that grows to fit |
 | **Formula** `F` | LaTeX, typeset live with KaTeX |
-| **Calculator** `C` | A running sheet with variables and `ans` |
+| **Calculator** `C` `Ctrl+K` | Units, conversions and exact answers — see below |
 | **Graph** `G` | Plot one or more `y = f(x)` curves |
 | **Shapes** `R` `O` `D` `L` `A` | Rectangle, ellipse, diamond, line, arrow |
 | **Images** | Paste from the clipboard or drop a file on the canvas |
@@ -114,21 +114,46 @@ leaves them alone and Object mode handles them. Either way, one sweep is one und
 
 ### The maths tools
 
-The **calculator** evaluates line by line, carrying variables forward:
+The calculator is modelled on [Qalculate!](https://qalculate.github.io/) — as a
+dropdown in the top bar (`Ctrl+K`) that answers while you type, and as a note
+you can leave on the board.
+
+Exact answers come first, with the decimal after, and `=` versus `≈` tells you
+whether anything was lost:
 
 ```
-r = 4
-area = pi r^2        →  50.26548246
-area / 2             →  25.13274123
-ans + 10%            →  27.64601535
-sqrt(2) + 5!         →  121.4142136
+sin 30deg              1/2 = 0.5
+1/3                    1/3 ≈ 0.3333333333
+sqrt(2)                1.414213562
+100 km/h to mph        62.13711922 mph
+2 m + 30 cm            2.3 m
+1 km - 250 m           750 m
+5 kWh to MJ            18 MJ
+98.6 degF to degC      37 °C
+10 N * 3 m             30 J
+3 m * 4 m              12 m²
+1 TiB to GB            1099.511628 GB
+15% of 240             36
+150 + 10%              165
 ```
 
-Implicit multiplication (`2pi`, `3(x+1)`), factorials, percentages
-(`150 + 10%` is 165, `200 * 10%` is 20), a DEG/RAD toggle, `#` comments, and
-`ans` for the previous line. Functions: `sqrt cbrt root abs sign exp ln log
-log2 sin cos tan asin acos atan atan2 sinh cosh tanh floor ceil round min max
-hypot gcd lcm ncr npr sum mean fact`. Constants: `pi tau e phi`.
+Units are carried through the arithmetic rather than pattern-matched, so adding
+metres to inches works and adding metres to seconds is refused. Angles are units
+too, which is what makes `sin 30deg` exactly a half whether or not the sheet is
+in degree mode.
+
+Also: convert with `to` or `->` (including `to fraction`, `to hex`, `to binary`),
+implicit multiplication (`2pi`, `3(x+1)`, `9.81 m/s^2`), `mod`, factorials,
+number bases (`0x1f`, `0b1011`), constants (`pi e phi c G h k_B N_A R`), and
+variables carried down a sheet with `ans` for the line above.
+
+The engine is written from scratch — exact rational arithmetic over BigInt, with
+a float fallback once something irrational happens — and is checked against real
+`qalc` output over a corpus of expressions. It matches on everything it claims
+to support. It deliberately does **not** do currency, symbolic algebra, complex
+numbers, date arithmetic, or Qalculate's mixed-unit output (`3 h + 45 min`);
+where qalc splits a result across two units this gives one decimal, and where
+qalc returns a symbolic form for `1/0` or `sqrt(-1)` this reports an error.
 
 The **graph** tool uses the same engine, so anything the calculator understands
 can be plotted. It breaks curves at asymptotes rather than drawing a vertical
@@ -338,6 +363,10 @@ src/
     erase.js     brush erasing — resampling and splitting strokes
     smoothing.js the pen stabiliser
     guide.js     the in-app guide's content
+  lib/qalc/      the calculator engine
+    rational.js  exact BigInt fractions, with a float fallback
+    units.js     units, SI prefixes, dimensional analysis, constants
+    index.js     tokeniser, parser, evaluator, Qalculate-style formatting
   stores/board.js  application state, undo/redo, autosave
 sync.sh          guided transfer menu — the easy way to move boards
 tools/

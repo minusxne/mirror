@@ -136,17 +136,22 @@ export const TOOL_GUIDE = [
     id: 'calc',
     title: 'Calculator',
     key: 'C',
-    blurb: 'A running sheet of working, where every line shows its own result.',
+    blurb: 'A running sheet of working, where every line shows its own result — and a dropdown in the top bar for one-off sums.',
     steps: [
-      'Click to place one, then type a line at a time.',
-      'Name values with = and reuse them further down: r = 4, then pi r^2.',
-      'ans refers to the line above. Lines starting with # are notes.'
+      'Press Ctrl+K for the calculator in the top bar; answers appear as you type.',
+      'Or click on the board to place a calculator note and type a line at a time.',
+      'Name values with = and reuse them below: r = 4, then pi r^2.',
+      'ans refers to the line above. Lines starting with # are notes.',
+      'Enter keeps a calculation in the history; Shift+Enter drops it onto the board.'
     ],
     tips: [
-      'Multiplication can be left out: 2pi, 3(x+1) and 2r all work.',
-      'Percentages behave like a till: 150 + 10% is 165, but 200 * 10% is 20.',
-      'Toggle DEG/RAD on the note itself for trigonometry.',
-      'Functions: sqrt cbrt root abs exp ln log log2 sin cos tan asin acos atan sinh cosh tanh floor ceil round min max hypot gcd lcm ncr npr sum mean fact.'
+      'Exact answers come first: sin 30deg is 1/2 = 0.5, and 1/3 is 1/3 ≈ 0.3333333333.',
+      'Units work throughout: 2 m + 30 cm, 100 km/h to mph, 5 kWh to MJ, 98.6 degF to degC.',
+      'Convert with to or ->. Also to fraction, to hex, to binary.',
+      'Multiplication can be left out: 2pi, 3(x+1), 9.81 m/s^2.',
+      'Percentages behave like a till: 150 + 10% is 165, 15% of 240 is 36, 200 * 10% is 20.',
+      'Angles: write 30deg for degrees whatever the mode; a bare number is radians unless you switch to DEG.',
+      'Functions: sqrt cbrt root abs exp ln log log2 sin cos tan asin acos atan sinh cosh tanh floor ceil round min max hypot gcd lcm comb perm mod.'
     ]
   },
   {
@@ -241,6 +246,7 @@ export const SHORTCUT_GROUPS = [
       ['Ctrl + 1', 'Fit everything on screen'],
       ['Ctrl + 2', 'Zoom to selection'],
       ['Ctrl + B', 'Open the board browser'],
+      ['Ctrl + K', 'Open the calculator'],
       ['+ / −', 'Zoom in / out']
     ]
   },

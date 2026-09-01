@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Icon from './Icon.vue'
 import SettingsMenu from './SettingsMenu.vue'
+import CalcDropdown from './CalcDropdown.vue'
 import { api } from '../lib/api.js'
 import {
   board,
@@ -24,6 +25,7 @@ const emit = defineEmits(['help', 'import', 'browse'])
 
 const dbOpen = ref(false)
 const settingsOpen = ref(false)
+const calcOpen = ref(false)
 const renaming = ref(false)
 const draftName = ref('')
 const info = ref(null)
@@ -46,11 +48,21 @@ const saveLabel = computed(() => {
 function toggleSettings () {
   settingsOpen.value = !settingsOpen.value
   dbOpen.value = false
+  calcOpen.value = false
 }
+
+function toggleCalc () {
+  calcOpen.value = !calcOpen.value
+  dbOpen.value = false
+  settingsOpen.value = false
+}
+
+defineExpose({ openCalc: () => { calcOpen.value = true } })
 
 async function toggleDb () {
   dbOpen.value = !dbOpen.value
   settingsOpen.value = false
+  calcOpen.value = false
   if (dbOpen.value) {
     try {
       info.value = await api.info()
@@ -94,13 +106,14 @@ function onDocumentClick (event) {
   if (event.target.closest('.has-popover')) return
   dbOpen.value = false
   settingsOpen.value = false
+  calcOpen.value = false
 }
 
 // Tell the shell to keep the bar on screen while anything is open out of it,
 // otherwise reaching for the popover is what makes it disappear.
 watch(
-  [settingsOpen, dbOpen, renaming],
-  ([a, b, c]) => setOverlay('topbar', a || b || c, 'top'),
+  [settingsOpen, dbOpen, calcOpen, renaming],
+  (flags) => setOverlay('topbar', flags.some(Boolean), 'top'),
   { immediate: true }
 )
 
@@ -196,6 +209,20 @@ const BACKGROUNDS = [
         <button class="ghost" title="Import a board from JSON" @click="emit('import')">
           <Icon name="upload" :size="17" />
         </button>
+      </div>
+
+      <div class="group has-popover">
+        <button
+          class="ghost"
+          :class="{ active: calcOpen }"
+          title="Calculator  (Ctrl+K)"
+          @click="toggleCalc"
+        >
+          <Icon name="calc" :size="17" />
+        </button>
+        <div v-if="calcOpen" class="popover calc-popover">
+          <CalcDropdown @close="calcOpen = false" />
+        </div>
       </div>
 
       <div class="group has-popover">
@@ -472,6 +499,10 @@ const BACKGROUNDS = [
 .settings-popover {
   right: 0;
   width: 340px;
+}
+.calc-popover {
+  right: 0;
+  width: 400px;
 }
 .ghost.active {
   background: var(--accent-soft);

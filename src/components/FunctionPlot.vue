@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { compileFunction } from '../lib/mathEval.js'
+import { compileFunction } from '../lib/qalc/index.js'
 
 const props = defineProps({
   expressions: { type: Array, default: () => ['x^2'] },
@@ -63,7 +63,7 @@ const series = computed(() => {
 
     let fn
     try {
-      fn = compileFunction(expr, 'x', { degrees: props.degrees })
+      fn = compileFunction(expr, 'x', { angleUnit: props.degrees ? 'deg' : 'rad' })
     } catch (err) {
       return { expr, color, segments: [], error: err.message }
     }

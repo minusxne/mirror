@@ -45,6 +45,7 @@ import {
 } from './stores/board.js'
 
 const canvas = ref(null)
+const topBar = ref(null)
 const fileInput = ref(null)
 const importInput = ref(null)
 const helpOpen = ref(false)
@@ -240,6 +241,11 @@ function onKeydown (event) {
       case 'b':
         event.preventDefault()
         browserOpen.value = true
+        return
+      case 'k':
+        event.preventDefault()
+        nearTop.value = true
+        topBar.value?.openCalc()
         return
       case 'd':
         event.preventDefault()
@@ -476,7 +482,7 @@ function onContextMenu (payload) {
     @drop="onDrop"
     @pointerdown="contextMenu = null"
   >
-    <TopBar @help="helpOpen = true" @import="onImportClick" @browse="browserOpen = true" />
+    <TopBar ref="topBar" @help="helpOpen = true" @import="onImportClick" @browse="browserOpen = true" />
 
     <main class="stage">
       <BoardCanvas ref="canvas" @context-menu="onContextMenu" />

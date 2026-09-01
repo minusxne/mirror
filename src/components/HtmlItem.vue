@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import MathBlock from './MathBlock.vue'
 import FunctionPlot from './FunctionPlot.vue'
-import { evaluateSheet, formatNumber } from '../lib/mathEval.js'
+import { calculateSheet } from '../lib/qalc/index.js'
 import { editingId, patchItem, patchItemQuiet, updateItem } from '../stores/board.js'
 
 const props = defineProps({
@@ -131,7 +131,9 @@ watch(() => d.value.text, () => nextTick(growStickyIfNeeded))
 
 const calcRows = computed(() => {
   if (props.item.type !== 'calc') return []
-  return evaluateSheet(d.value.source ?? '', { degrees: !!d.value.degrees })
+  return calculateSheet(d.value.source ?? '', {
+    angleUnit: d.value.degrees ? 'deg' : 'rad'
+  })
 })
 
 const calcTotalLines = computed(() => calcRows.value.length)
